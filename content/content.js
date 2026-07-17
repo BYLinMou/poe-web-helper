@@ -379,6 +379,8 @@
   let toastTimer = null;
   let routeTimer = null;
   let nativeInjectionTimer = null;
+  let nativeTooltipTimer = null;
+  let nativeTooltip = null;
   let exportPromise = null;
   let exportDialogReturnFocus = null;
 
@@ -630,6 +632,51 @@
     return "Download";
   }
 
+  function hideNativeTooltip() {
+    clearTimeout(nativeTooltipTimer);
+    nativeTooltipTimer = null;
+    nativeTooltip?.remove();
+    nativeTooltip = null;
+    document.querySelectorAll(`${NATIVE_EXPORT_SELECTOR}[aria-describedby="poe-notes-download-tooltip"]`)
+      .forEach((control) => control.removeAttribute("aria-describedby"));
+  }
+
+  function showNativeTooltip(control, delay = 320) {
+    hideNativeTooltip();
+    nativeTooltipTimer = setTimeout(() => {
+      nativeTooltipTimer = null;
+      if (!document.contains(control) || control.disabled) {
+        return;
+      }
+
+      const tooltip = document.createElement("div");
+      tooltip.id = "poe-notes-download-tooltip";
+      tooltip.dataset.poeNotesNativeTooltip = "true";
+      tooltip.setAttribute("role", "tooltip");
+      tooltip.textContent = downloadLabel();
+      document.body.append(tooltip);
+      nativeTooltip = tooltip;
+      control.setAttribute("aria-describedby", tooltip.id);
+
+      const controlRect = control.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const left = Math.min(
+        Math.max(8, controlRect.left + (controlRect.width - tooltipRect.width) / 2),
+        innerWidth - tooltipRect.width - 8
+      );
+      const top = Math.min(controlRect.bottom + 8, innerHeight - tooltipRect.height - 8);
+      tooltip.style.left = `${Math.round(left)}px`;
+      tooltip.style.top = `${Math.round(top)}px`;
+    }, delay);
+  }
+
+  function attachNativeTooltip(control) {
+    control.addEventListener("pointerenter", () => showNativeTooltip(control));
+    control.addEventListener("pointerleave", hideNativeTooltip);
+    control.addEventListener("focus", () => showNativeTooltip(control, 0));
+    control.addEventListener("blur", hideNativeTooltip);
+  }
+
   function closeExportDialog() {
     if (exportBackdrop.hidden) {
       return;
@@ -663,8 +710,8 @@
     control.removeAttribute("aria-controls");
     control.removeAttribute("aria-expanded");
     control.removeAttribute("data-state");
+    control.removeAttribute("title");
     control.setAttribute("aria-label", downloadLabel());
-    control.setAttribute("title", downloadLabel());
     if (exportPromise) {
       control.setAttribute("aria-disabled", "true");
       if (control instanceof HTMLButtonElement) {
@@ -674,6 +721,7 @@
     control.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      hideNativeTooltip();
       const expandedButton = [...document.querySelectorAll('button[aria-expanded="true"]')]
         .find((button) => !button.matches(NATIVE_EXPORT_SELECTOR));
       expandedButton?.click();
@@ -683,6 +731,9 @@
   }
 
   function setNativeExportBusy(busy) {
+    if (busy) {
+      hideNativeTooltip();
+    }
     document.querySelectorAll(NATIVE_EXPORT_SELECTOR).forEach((control) => {
       control.toggleAttribute("aria-busy", busy);
       control.setAttribute("aria-disabled", String(busy));
@@ -707,6 +758,14 @@
     const button = prepareNativeExportControl(template.cloneNode(false));
     button.type = "button";
     button.innerHTML = DOWNLOAD_ICON;
+    const nativeLabel = document.createElement("span");
+    nativeLabel.className = template.querySelector('[class*="Button_label__"]')?.className || "";
+    if (!nativeLabel.className) {
+      nativeLabel.style.cssText = "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0;";
+    }
+    nativeLabel.textContent = downloadLabel();
+    button.append(nativeLabel);
+    attachNativeTooltip(button);
     actionGroup.insertBefore(button, actionGroup.firstElementChild);
   }
 
@@ -1293,6 +1352,7 @@
       }
       closeEditor();
       closeExportDialog();
+      hideNativeTooltip();
       hideTooltip();
       unwrapMarks();
       pageKey = nextKey;
