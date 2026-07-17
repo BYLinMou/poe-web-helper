@@ -30,6 +30,7 @@
   const EXPORT_PROGRESS_TIMEOUT = 2200;
   const EXPORT_STABLE_ROUNDS = 3;
   const EXPORT_MAX_ROUNDS = 500;
+  const MIN_EXPORTING_TOAST_MS = 500;
   const markdownConverter = globalThis.TurndownService
     ? new globalThis.TurndownService({
       headingStyle: "atx",
@@ -75,7 +76,7 @@
       conversationChanged: "The Poe conversation changed during export.",
       historyLoadFailed: "Poe could not load earlier messages. Please retry the export.",
       historyTooLong: "Poe kept loading history for too long. Please try again.",
-      creatingPdf: "Creating PDF... {count} messages",
+      exporting: "Full history loaded. Exporting {count} messages as {format}...",
       exported: "Exported {count} messages as {format}.",
       overlap: "This selection overlaps an existing highlight.",
       exportFailed: "Export failed."
@@ -114,7 +115,7 @@
       conversationChanged: "导出期间 Poe 对话发生了变化。",
       historyLoadFailed: "Poe 无法加载更早的消息，请重试导出。",
       historyTooLong: "Poe 加载历史记录时间过长，请重试。",
-      creatingPdf: "正在生成 PDF... {count} 条消息",
+      exporting: "完整记录已加载，正在将 {count} 条消息导出为 {format}...",
       exported: "已将 {count} 条消息导出为 {format}。",
       overlap: "所选文本与已有高亮重叠。",
       exportFailed: "导出失败。"
@@ -153,7 +154,7 @@
       conversationChanged: "匯出期間 Poe 對話已變更。",
       historyLoadFailed: "Poe 無法載入更早的訊息，請重試匯出。",
       historyTooLong: "Poe 載入歷史記錄時間過長，請重試。",
-      creatingPdf: "正在建立 PDF... {count} 則訊息",
+      exporting: "完整記錄已載入，正在將 {count} 則訊息匯出為 {format}...",
       exported: "已將 {count} 則訊息匯出為 {format}。",
       overlap: "所選文字與現有標記重疊。",
       exportFailed: "匯出失敗。"
@@ -1448,10 +1449,20 @@
         messages
       };
       const filename = Export.safeFilename(title, format);
+      const exportFormat = format.toUpperCase();
+      const exportingStartedAt = performance.now();
       let blob;
 
+      showToast(translate("exporting", {
+        count: records.size,
+        format: exportFormat
+      }), true);
+      await Promise.race([
+        new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        new Promise((resolve) => setTimeout(resolve, 120))
+      ]);
+
       if (format === "pdf") {
-        showToast(translate("creatingPdf", { count: records.size }), true);
         blob = await Pdf.createPdfBlob(payload);
       } else if (format === "txt") {
         blob = new Blob([Export.renderText(payload)], { type: "text/plain;charset=utf-8" });
@@ -1461,8 +1472,12 @@
         blob = new Blob([Export.renderMarkdown(payload)], { type: "text/markdown;charset=utf-8" });
       }
 
+      const remainingStatusTime = MIN_EXPORTING_TOAST_MS - (performance.now() - exportingStartedAt);
+      if (remainingStatusTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingStatusTime));
+      }
       downloadBlob(blob, filename);
-      showToast(translate("exported", { count: records.size, format: format.toUpperCase() }));
+      showToast(translate("exported", { count: records.size, format: exportFormat }));
       return { ok: true, count: records.size, filename, format };
     } finally {
       if (document.contains(scrollContainer)) {
