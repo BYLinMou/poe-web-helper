@@ -1,0 +1,45 @@
+[data-poe-notes-highlight] {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  border-radius: 2px;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+[data-poe-notes-highlight="yellow"] {
+  background: rgba(246, 190, 55, 0.38);
+  box-shadow: inset 0 -1px 0 rgba(246, 190, 55, 0.9);
+}
+
+[data-poe-notes-highlight="green"] {
+  background: rgba(54, 207, 145, 0.31);
+  box-shadow: inset 0 -1px 0 rgba(54, 207, 145, 0.85);
+}
+
+[data-poe-notes-highlight="blue"] {
+  background: rgba(66, 169, 242, 0.32);
+  box-shadow: inset 0 -1px 0 rgba(66, 169, 242, 0.86);
+}
+
+[data-poe-notes-highlight="pink"] {
+  background: rgba(238, 102, 169, 0.32);
+  box-shadow: inset 0 -1px 0 rgba(238, 102, 169, 0.86);
+}
+
+[data-poe-notes-highlight="purple"] {
+  background: rgba(170, 112, 232, 0.32);
+  box-shadow: inset 0 -1px 0 rgba(170, 112, 232, 0.86);
+}
+
+[data-poe-notes-highlight]:hover,
+[data-poe-notes-highlight]:focus-visible {
+  box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.82);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-poe-notes-highlight] {
+    transition: none;
+  }
+}

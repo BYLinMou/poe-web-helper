@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Poe Notes",
+  "description": "Highlight passages in Poe conversations and attach private notes.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "action": {
+    "default_title": "Poe Notes",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://poe.com/*",
+        "https://www.poe.com/*"
+      ],
+      "css": [
+        "content/page.css"
+      ],
+      "js": [
+        "content/anchor.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

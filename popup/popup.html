@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Poe Notes</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <header class="header">
+      <span class="logo" aria-hidden="true"><span></span></span>
+      <div>
+        <h1>Poe Notes</h1>
+        <p>Private highlights for Poe</p>
+      </div>
+    </header>
+
+    <main>
+      <section class="status" aria-live="polite">
+        <span class="status-dot"></span>
+        <span class="status-label">Checking this page...</span>
+      </section>
+
+      <section class="summary" hidden>
+        <span>Highlights on this page</span>
+        <strong class="count">0</strong>
+      </section>
+
+      <section class="controls">
+        <label class="toggle-row">
+          <span>Enable highlights</span>
+          <input class="toggle" type="checkbox" checked>
+        </label>
+        <button class="clear" type="button" disabled>Clear this page</button>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

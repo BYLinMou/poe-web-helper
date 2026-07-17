@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Poe Notes fixture</title>
+    <link rel="stylesheet" href="../content/page.css">
+    <style>
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        color: #f2f3f5;
+        background: #111214;
+        font: 16px/1.62 Arial, sans-serif;
+      }
+      .page { width: min(760px, calc(100% - 40px)); margin: 58px auto; }
+      .bot { margin: 0 0 8px; color: #aab0b9; font-size: 13px; }
+      .Message_selectableText__fixture { max-width: 660px; }
+      p { margin: 0 0 16px; }
+      .composer {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        left: 20px;
+        max-width: 720px;
+        margin: auto;
+      }
+      .GrowingTextArea_textArea__fixture {
+        width: 100%;
+        min-height: 52px;
+        padding: 12px;
+        color: #f2f3f5;
+        background: #24262a;
+        border: 1px solid #4c525c;
+        border-radius: 7px;
+      }
+    </style>
+    <script>
+      (() => {
+        const store = {};
+        const storageListeners = [];
+        const messageListeners = [];
+
+        window.__fixtureStore = store;
+        window.chrome = {
+          storage: {
+            local: {
+              get(keys, callback) {
+                const result = {};
+                for (const key of keys) {
+                  if (Object.hasOwn(store, key)) result[key] = store[key];
+                }
+                callback(result);
+              },
+              set(values, callback) {
+                const changes = {};
+                for (const [key, value] of Object.entries(values)) {
+                  changes[key] = { oldValue: store[key], newValue: value };
+                  store[key] = structuredClone(value);
+                }
+                storageListeners.forEach((listener) => listener(changes, "local"));
+                callback?.();
+              }
+            },
+            onChanged: { addListener(listener) { storageListeners.push(listener); } }
+          },
+          runtime: {
+            onMessage: { addListener(listener) { messageListeners.push(listener); } }
+          }
+        };
+      })();
+    </script>
+  </head>
+  <body>
+    <main class="page">
+      <p class="bot">claude-sonnet</p>
+      <article id="message-491375933718" data-complete="true">
+        <div class="Message_selectableText__fixture">
+          <p>The quick <strong>brown fox</strong> jumps over the quiet river.</p>
+          <p>A second paragraph confirms that highlights survive structured replies.</p>
+        </div>
+      </article>
+    </main>
+    <footer class="composer ChatMessageInputContainer_inputContainer__fixture">
+      <div class="GrowingTextArea_growWrap__fixture" data-replicated-value="Existing prompt">
+        <textarea class="GrowingTextArea_textArea__fixture" rows="2">Existing prompt</textarea>
+      </div>
+    </footer>
+
+    <script src="../content/anchor.js"></script>
+    <script src="../content/content.js"></script>
+    <script>
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+      function assert(value, message) {
+        if (!value) throw new Error(message);
+      }
+
+      async function selectFixtureText() {
+        await wait(250);
+        const root = document.querySelector('.Message_selectableText__fixture');
+        const firstText = root.querySelector('p').firstChild;
+        const strongText = root.querySelector('strong').firstChild;
+        const range = document.createRange();
+        range.setStart(firstText, 4);
+        range.setEnd(strongText, strongText.data.length);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        root.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+        await wait(120);
+        return document.querySelector('#poe-notes-ui').shadowRoot;
+      }
+
+      async function run() {
+        const shadow = await selectFixtureText();
+        const selectionMenu = shadow.querySelector('.selection-menu');
+        const panel = shadow.querySelector('.panel');
+        assert(!selectionMenu.hidden, 'selection actions did not open');
+        assert(panel.hidden, 'highlight editor opened before choosing an action');
+
+        if (new URL(location.href).searchParams.has('visual') || innerWidth >= 900 || innerWidth <= 420) {
+          document.body.dataset.testResult = 'visual-ready';
+          return;
+        }
+
+        const composer = document.querySelector('.GrowingTextArea_textArea__fixture');
+        composer.setSelectionRange(8, 8);
+        composer.dataset.inputEvents = '0';
+        composer.addEventListener('input', () => {
+          composer.dataset.inputEvents = String(Number(composer.dataset.inputEvents) + 1);
+        });
+        shadow.querySelector('.quote-action').click();
+        await wait(150);
+
+        const insertedQuote = '> quick brown fox\n\n';
+        assert(composer.value === `${insertedQuote}Existing prompt`, 'quote did not preserve the existing draft');
+        assert(composer.selectionStart === 8 + insertedQuote.length, 'composer cursor was not preserved');
+        assert(composer.selectionEnd === composer.selectionStart, 'composer selection was not preserved');
+        assert(composer.dataset.inputEvents === '1', 'quote did not dispatch an input event');
+
+        await selectFixtureText();
+        assert(!selectionMenu.hidden, 'selection actions did not reopen');
+        shadow.querySelector('.highlight-action').click();
+        await wait(80);
+        assert(!panel.hidden, 'editor did not open after choosing Highlight');
+        assert(shadow.querySelector('.quote').textContent === 'quick brown fox', 'selected quote is wrong');
+
+        shadow.querySelector('.note').value = 'Useful evidence';
+        shadow.querySelector('[data-color="blue"]').click();
+        shadow.querySelector('.save').click();
+        await wait(450);
+
+        let marks = document.querySelectorAll('[data-poe-notes-id]');
+        assert(marks.length === 2, 'multi-node selection was not fully highlighted');
+        assert([...marks].every((mark) => mark.dataset.poeNotesHighlight === 'blue'), 'color was not saved');
+
+        const textRoot = document.querySelector('.Message_selectableText__fixture');
+        textRoot.innerHTML = '<p>The quick <strong>brown fox</strong> jumps over the quiet river.</p><p>A second paragraph confirms that highlights survive structured replies.</p>';
+        await wait(450);
+        marks = document.querySelectorAll('[data-poe-notes-id]');
+        assert(marks.length === 2, 'highlight was not restored after a DOM rerender');
+
+        marks[0].click();
+        await wait(80);
+        assert(!panel.hidden, 'saved highlight did not reopen');
+        assert(shadow.querySelector('.note').value === 'Useful evidence', 'saved note was not restored');
+        assert(!shadow.querySelector('.delete').hidden, 'delete action is missing while editing');
+        shadow.querySelector('.delete').click();
+        await wait(300);
+
+        assert(document.querySelectorAll('[data-poe-notes-id]').length === 0, 'delete did not remove marks');
+        const pageKey = Object.keys(window.__fixtureStore).find((key) => key.startsWith('poe-notes:page:'));
+        assert(pageKey && window.__fixtureStore[pageKey].length === 0, 'delete was not persisted');
+        document.body.dataset.testResult = 'pass';
+        document.title = 'PASS - Poe Notes fixture';
+      }
+
+      run().catch((error) => {
+        document.body.dataset.testResult = 'fail';
+        document.body.dataset.testError = error.message;
+        document.title = `FAIL - ${error.message}`;
+      });
+    </script>
+  </body>
+</html>
