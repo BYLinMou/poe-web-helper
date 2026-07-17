@@ -913,7 +913,17 @@
 
   function installHeaderExportControl() {
     const actionGroup = document.querySelector(HEADER_ACTIONS_SELECTOR);
-    if (!actionGroup || actionGroup.querySelector(NATIVE_EXPORT_SELECTOR)) {
+    if (!actionGroup) {
+      return;
+    }
+
+    const existingButton = actionGroup.querySelector(NATIVE_EXPORT_SELECTOR);
+    if (existingButton) {
+      existingButton.dataset.poeNotesHeaderExport = "true";
+      existingButton.removeAttribute("title");
+      existingButton.querySelectorAll("span").forEach((label) => {
+        label.classList.add("poe-notes-header-export-label");
+      });
       return;
     }
 
@@ -924,13 +934,12 @@
     }
 
     const button = prepareNativeExportControl(template.cloneNode(false));
+    button.dataset.poeNotesHeaderExport = "true";
     button.type = "button";
     button.innerHTML = DOWNLOAD_ICON;
     const nativeLabel = document.createElement("span");
     nativeLabel.className = template.querySelector('[class*="Button_label__"]')?.className || "";
-    if (!nativeLabel.className) {
-      nativeLabel.style.cssText = "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0;";
-    }
+    nativeLabel.classList.add("poe-notes-header-export-label");
     nativeLabel.textContent = downloadLabel();
     button.append(nativeLabel);
     attachNativeTooltip(button);
