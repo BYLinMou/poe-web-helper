@@ -9,6 +9,14 @@
   const clearButton = document.querySelector(".clear");
   let activeTabId = null;
 
+  function message(key, fallback) {
+    return chrome.i18n?.getMessage(key) || fallback;
+  }
+
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = message(element.dataset.i18n, element.textContent);
+  });
+
   async function getActiveTab() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     return tabs[0] || null;
@@ -20,7 +28,7 @@
 
   function showUnsupported() {
     status.className = "status unsupported";
-    statusLabel.textContent = "Open a conversation on poe.com";
+    statusLabel.textContent = message("openConversation", "Open a conversation on poe.com");
     summary.hidden = true;
     toggle.disabled = true;
     clearButton.disabled = true;
@@ -37,7 +45,9 @@
     try {
       const state = await send({ type: "POE_NOTES_GET_STATE" });
       status.className = "status ready";
-      statusLabel.textContent = state.enabled ? "Ready on this Poe page" : "Highlights are paused";
+      statusLabel.textContent = state.enabled
+        ? message("readyOnPage", "Ready on this Poe page")
+        : message("highlightsPaused", "Highlights are paused");
       summary.hidden = false;
       count.textContent = String(state.count);
       toggle.checked = state.enabled;
@@ -53,11 +63,13 @@
       return;
     }
     await send({ type: "POE_NOTES_SET_ENABLED", enabled: toggle.checked });
-    statusLabel.textContent = toggle.checked ? "Ready on this Poe page" : "Highlights are paused";
+    statusLabel.textContent = toggle.checked
+      ? message("readyOnPage", "Ready on this Poe page")
+      : message("highlightsPaused", "Highlights are paused");
   });
 
   clearButton.addEventListener("click", async () => {
-    if (!activeTabId || !confirm("Delete all highlights saved for this page?")) {
+    if (!activeTabId || !confirm(message("clearConfirm", "Delete all highlights saved for this page?"))) {
       return;
     }
     await send({ type: "POE_NOTES_CLEAR_PAGE" });

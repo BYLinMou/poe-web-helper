@@ -1,0 +1,13 @@
+{
+  "extensionName": { "message": "Poe 筆記" },
+  "extensionDescription": { "message": "標記和引用 Poe 文字，並匯出完整對話記錄。" },
+  "popupSubtitle": { "message": "Poe 私人標記筆記" },
+  "checkingPage": { "message": "正在檢查目前頁面..." },
+  "highlightsOnPage": { "message": "目前頁面的標記" },
+  "enableHighlights": { "message": "啟用標記" },
+  "clearPage": { "message": "清除目前頁面" },
+  "openConversation": { "message": "請在 poe.com 開啟一個對話" },
+  "readyOnPage": { "message": "已在目前 Poe 頁面啟用" },
+  "highlightsPaused": { "message": "標記已暫停" },
+  "clearConfirm": { "message": "刪除目前頁面儲存的所有標記嗎？" }
+}

@@ -24,6 +24,7 @@ node --check popup/popup.js
 node tests/anchor.test.cjs
 node tests/export.test.cjs
 node tests/pdf.test.cjs
+node tests/locales.test.cjs
 ```
 
 There is no build step and no virtual environment is required.

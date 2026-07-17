@@ -40,6 +40,125 @@
   if (markdownConverter && globalThis.turndownPluginGfm?.gfm) {
     markdownConverter.use(globalThis.turndownPluginGfm.gfm);
   }
+  const UI_MESSAGES = {
+    en: {
+      download: "Download",
+      downloadConversation: "Download conversation",
+      close: "Close",
+      plainText: "Plain text",
+      pdfDocument: "PDF document",
+      jsonData: "JSON data",
+      textActions: "Text actions",
+      highlight: "Highlight",
+      quote: "Quote",
+      editHighlight: "Edit highlight",
+      notePlaceholder: "Add a note (optional)",
+      note: "Note",
+      highlightColor: "Highlight color",
+      delete: "Delete",
+      cancel: "Cancel",
+      save: "Save",
+      yellow: "Yellow",
+      green: "Green",
+      blue: "Blue",
+      pink: "Pink",
+      purple: "Purple",
+      selectWithinOne: "Select text within one Poe message.",
+      selectShorter: "Select a shorter passage.",
+      exportInProgress: "A conversation export is already in progress.",
+      openConversation: "Open a Poe conversation before exporting.",
+      highlightedWithNote: "Highlighted text. Note: {note}",
+      highlightedText: "Highlighted text",
+      composerMissing: "Open a Poe conversation with a message box.",
+      quoteAdded: "Quote added to the Poe message box.",
+      loadingHistory: "Loading full history... {count} messages found",
+      conversationChanged: "The Poe conversation changed during export.",
+      historyLoadFailed: "Poe could not load earlier messages. Please retry the export.",
+      historyTooLong: "Poe kept loading history for too long. Please try again.",
+      creatingPdf: "Creating PDF... {count} messages",
+      exported: "Exported {count} messages as {format}.",
+      overlap: "This selection overlaps an existing highlight.",
+      exportFailed: "Export failed."
+    },
+    zhHans: {
+      download: "下载",
+      downloadConversation: "下载对话",
+      close: "关闭",
+      plainText: "纯文本",
+      pdfDocument: "PDF 文件",
+      jsonData: "JSON 数据",
+      textActions: "文本操作",
+      highlight: "高亮",
+      quote: "引用",
+      editHighlight: "编辑高亮",
+      notePlaceholder: "添加笔记（可选）",
+      note: "笔记",
+      highlightColor: "高亮颜色",
+      delete: "删除",
+      cancel: "取消",
+      save: "保存",
+      yellow: "黄色",
+      green: "绿色",
+      blue: "蓝色",
+      pink: "粉色",
+      purple: "紫色",
+      selectWithinOne: "请在同一条 Poe 消息内选择文本。",
+      selectShorter: "请选择较短的文本。",
+      exportInProgress: "对话正在导出。",
+      openConversation: "请先打开一个 Poe 对话。",
+      highlightedWithNote: "已高亮。笔记：{note}",
+      highlightedText: "已高亮文本",
+      composerMissing: "请打开带有输入框的 Poe 对话。",
+      quoteAdded: "引用已添加到 Poe 输入框。",
+      loadingHistory: "正在加载完整记录... 已找到 {count} 条消息",
+      conversationChanged: "导出期间 Poe 对话发生了变化。",
+      historyLoadFailed: "Poe 无法加载更早的消息，请重试导出。",
+      historyTooLong: "Poe 加载历史记录时间过长，请重试。",
+      creatingPdf: "正在生成 PDF... {count} 条消息",
+      exported: "已将 {count} 条消息导出为 {format}。",
+      overlap: "所选文本与已有高亮重叠。",
+      exportFailed: "导出失败。"
+    },
+    zhHant: {
+      download: "下載",
+      downloadConversation: "下載對話",
+      close: "關閉",
+      plainText: "純文字",
+      pdfDocument: "PDF 文件",
+      jsonData: "JSON 資料",
+      textActions: "文字操作",
+      highlight: "螢光標記",
+      quote: "引用",
+      editHighlight: "編輯標記",
+      notePlaceholder: "新增筆記（選填）",
+      note: "筆記",
+      highlightColor: "標記顏色",
+      delete: "刪除",
+      cancel: "取消",
+      save: "儲存",
+      yellow: "黃色",
+      green: "綠色",
+      blue: "藍色",
+      pink: "粉紅色",
+      purple: "紫色",
+      selectWithinOne: "請在同一則 Poe 訊息內選取文字。",
+      selectShorter: "請選取較短的文字。",
+      exportInProgress: "對話正在匯出。",
+      openConversation: "請先開啟一個 Poe 對話。",
+      highlightedWithNote: "已標記文字。筆記：{note}",
+      highlightedText: "已標記文字",
+      composerMissing: "請開啟含有輸入框的 Poe 對話。",
+      quoteAdded: "引用已加入 Poe 輸入框。",
+      loadingHistory: "正在載入完整記錄... 已找到 {count} 則訊息",
+      conversationChanged: "匯出期間 Poe 對話已變更。",
+      historyLoadFailed: "Poe 無法載入更早的訊息，請重試匯出。",
+      historyTooLong: "Poe 載入歷史記錄時間過長，請重試。",
+      creatingPdf: "正在建立 PDF... {count} 則訊息",
+      exported: "已將 {count} 則訊息匯出為 {format}。",
+      overlap: "所選文字與現有標記重疊。",
+      exportFailed: "匯出失敗。"
+    }
+  };
   const UI_STYLES = `
     :host {
       --panel: #25272b;
@@ -51,6 +170,9 @@
       --primary: #79bfff;
       --primary-hover: #9bcfff;
       --danger: #ff827a;
+      --selection-panel: #383b41;
+      --selection-hover: #464a52;
+      --selection-border: #737a86;
       --shadow: 0 18px 48px rgba(0, 0, 0, 0.38), 0 2px 10px rgba(0, 0, 0, 0.24);
       color-scheme: dark;
       font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -68,6 +190,9 @@
       --primary: #1677c8;
       --primary-hover: #0f65ad;
       --danger: #c43737;
+      --selection-panel: #eef0f3;
+      --selection-hover: #e1e4e8;
+      --selection-border: #b7bdc6;
       --shadow: 0 18px 48px rgba(31, 36, 43, 0.18), 0 2px 10px rgba(31, 36, 43, 0.12);
       color-scheme: light;
     }
@@ -179,8 +304,8 @@
       display: flex;
       padding: 3px;
       color: var(--text);
-      background: var(--panel);
-      border: 1px solid var(--border);
+      background: var(--selection-panel);
+      border: 1px solid var(--selection-border);
       border-radius: 7px;
       box-shadow: var(--shadow);
       pointer-events: auto;
@@ -200,8 +325,8 @@
       letter-spacing: 0;
     }
 
-    .selection-action + .selection-action { border-left: 1px solid var(--border); border-radius: 0 4px 4px 0; }
-    .selection-action:hover { background: var(--panel-raised); }
+    .selection-action + .selection-action { border-left: 1px solid var(--selection-border); border-radius: 0 4px 4px 0; }
+    .selection-action:hover { background: var(--selection-hover); }
     .selection-action:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
 
     .panel {
@@ -511,7 +636,7 @@
     const startMessage = getMessageRoot(range.startContainer);
     const endMessage = getMessageRoot(range.endContainer);
     if (!startMessage || startMessage !== endMessage) {
-      return { error: "Select text within one Poe message." };
+      return { error: translate("selectWithinOne") };
     }
 
     const root = getTextRoot(startMessage);
@@ -524,7 +649,7 @@
       return null;
     }
     if (quote.length > MAX_QUOTE_LENGTH) {
-      return { error: "Select a shorter passage." };
+      return { error: translate("selectShorter") };
     }
 
     const start = textOffset(root, range.startContainer, range.startOffset);
@@ -614,22 +739,65 @@
     }
   }
 
-  function downloadLabel(referenceText = "") {
+  function interfaceLocale(referenceText = "") {
     const interfaceText = referenceText || document.querySelector(HEADER_ACTIONS_SELECTOR)?.textContent || "";
     if (/重新命名|釘選|邀請/.test(interfaceText)) {
-      return "下載對話";
+      return "zhHant";
     }
     if (/重命名|置顶|钉选|邀请/.test(interfaceText)) {
-      return "下载对话";
+      return "zhHans";
     }
     const language = document.documentElement.lang.toLowerCase();
     if (language.startsWith("zh-hant") || language.startsWith("zh-tw") || language.startsWith("zh-hk")) {
-      return "下載對話";
+      return "zhHant";
     }
     if (language.startsWith("zh")) {
-      return "下载对话";
+      return "zhHans";
     }
-    return "Download";
+    return "en";
+  }
+
+  function translate(key, variables = {}, referenceText = "") {
+    const messages = UI_MESSAGES[interfaceLocale(referenceText)] || UI_MESSAGES.en;
+    const template = messages[key] || UI_MESSAGES.en[key] || key;
+    return template.replace(/\{(\w+)\}/g, (_match, name) => String(variables[name] ?? ""));
+  }
+
+  function downloadLabel(referenceText = "") {
+    return translate("download", {}, referenceText);
+  }
+
+  function applyUiTranslations() {
+    const setText = (selector, key) => {
+      const element = shadow.querySelector(selector);
+      if (element) {
+        element.textContent = translate(key);
+      }
+    };
+
+    setText(".export-dialog-title", "downloadConversation");
+    setText('[data-format="txt"] span:last-child', "plainText");
+    setText('[data-format="pdf"] span:last-child', "pdfDocument");
+    setText('[data-format="json"] span:last-child', "jsonData");
+    setText(".highlight-action", "highlight");
+    setText(".quote-action", "quote");
+    setText(".color-label", "highlightColor");
+    setText(".delete", "delete");
+    setText(".cancel", "cancel");
+    setText(".save", "save");
+
+    exportCloseButton.setAttribute("aria-label", translate("close"));
+    exportCloseButton.setAttribute("title", translate("close"));
+    selectionMenu.setAttribute("aria-label", translate("textActions"));
+    panel.setAttribute("aria-label", translate("editHighlight"));
+    noteElement.placeholder = translate("notePlaceholder");
+    noteElement.setAttribute("aria-label", translate("note"));
+    shadow.querySelector(".color-row")?.setAttribute("aria-label", translate("highlightColor"));
+    shadow.querySelectorAll(".swatch").forEach((swatch) => {
+      const label = translate(swatch.dataset.color);
+      swatch.setAttribute("aria-label", label);
+      swatch.setAttribute("title", label);
+    });
   }
 
   function hideNativeTooltip() {
@@ -688,18 +856,18 @@
 
   function openExportDialog() {
     if (exportPromise) {
-      showToast("A conversation export is already in progress.");
+      showToast(translate("exportInProgress"));
       return;
     }
     if (!document.querySelector(`${MESSAGE_SELECTOR} ${TEXT_SELECTOR}`)) {
-      showToast("Open a Poe conversation before exporting.");
+      showToast(translate("openConversation"));
       return;
     }
 
     closeEditor();
     hideTooltip();
     exportDialogReturnFocus = document.activeElement;
-    shadow.querySelector(".export-dialog-title").textContent = downloadLabel();
+    applyUiTranslations();
     exportBackdrop.hidden = false;
     requestAnimationFrame(() => exportCloseButton.focus({ preventScroll: true }));
   }
@@ -797,7 +965,7 @@
     }
 
     const item = prepareNativeExportControl(renameItem.cloneNode(true));
-    const menuDownloadLabel = downloadLabel(normalizedLabel(renameItem));
+    const menuDownloadLabel = translate("downloadConversation", {}, normalizedLabel(renameItem));
     item.removeAttribute("title");
     item.setAttribute("aria-label", menuDownloadLabel);
     item.querySelectorAll("[id], [aria-controls], [aria-expanded], [data-state]").forEach((element) => {
@@ -922,7 +1090,12 @@
       mark.dataset.poeNotesId = annotation.id;
       mark.dataset.poeNotesHighlight = annotation.color;
       mark.tabIndex = segmentIndex === 0 ? 0 : -1;
-      mark.setAttribute("aria-label", annotation.note ? `Highlighted text. Note: ${annotation.note}` : "Highlighted text");
+      mark.setAttribute(
+        "aria-label",
+        annotation.note
+          ? translate("highlightedWithNote", { note: annotation.note })
+          : translate("highlightedText")
+      );
       range.surroundContents(mark);
     });
   }
@@ -1036,7 +1209,7 @@
 
     const composer = findComposer();
     if (!composer) {
-      showToast("Open a Poe conversation with a message box.");
+      showToast(translate("composerMissing"));
       return;
     }
 
@@ -1068,7 +1241,7 @@
       composer.setSelectionRange(selectionStart + insertion.length, selectionEnd + insertion.length);
       composer.scrollTop = scrollTop;
     });
-    showToast("Quote added to the Poe message box.");
+    showToast(translate("quoteAdded"));
   }
 
   function findScrollContainer() {
@@ -1091,7 +1264,7 @@
 
   function messageAuthor(messageRoot) {
     if (messageRoot.querySelector(RIGHT_MESSAGE_SELECTOR)) {
-      return "You";
+      return interfaceLocale() === "en" ? "You" : "你";
     }
 
     const botName = messageRoot.querySelector(BOT_NAME_SELECTOR)?.textContent?.trim();
@@ -1102,7 +1275,7 @@
     const avatarName = messageRoot.querySelector('img[alt*=" Bot"]')?.alt
       ?.replace(/\s+Bot(?:\s+avatar)?\s*$/i, "")
       .trim();
-    return avatarName || "Assistant";
+    return avatarName || (interfaceLocale() === "zhHant" ? "助理" : interfaceLocale() === "zhHans" ? "助手" : "Assistant");
   }
 
   function collectExportMessages(records) {
@@ -1217,7 +1390,7 @@
     format = ["md", "txt", "pdf", "json"].includes(format) ? format : "md";
     const scrollContainer = findScrollContainer();
     if (!scrollContainer) {
-      throw new Error("Open a Poe conversation before exporting.");
+      throw new Error(translate("openConversation"));
     }
 
     const records = new Map();
@@ -1228,7 +1401,7 @@
 
     closeEditor();
     collectExportMessages(records);
-    showToast(`Loading full history... ${records.size} messages found`, true);
+    showToast(translate("loadingHistory", { count: records.size }), true);
 
     try {
       while (stableRounds < EXPORT_STABLE_ROUNDS && rounds < EXPORT_MAX_ROUNDS) {
@@ -1236,7 +1409,7 @@
           !document.contains(scrollContainer) ||
           Anchor.canonicalPageKey(location.href) !== exportPageKey
         ) {
-          throw new Error("The Poe conversation changed during export.");
+          throw new Error(translate("conversationChanged"));
         }
         const signature = historySignature();
         const progressPromise = waitForHistoryProgress(signature, scrollContainer);
@@ -1244,15 +1417,15 @@
         const changed = await progressPromise;
         collectExportMessages(records);
         if (hasHistoryLoadError(scrollContainer)) {
-          throw new Error("Poe could not load earlier messages. Please retry the export.");
+          throw new Error(translate("historyLoadFailed"));
         }
         stableRounds = changed || isHistoryLoading(scrollContainer) ? 0 : stableRounds + 1;
         rounds += 1;
-        showToast(`Loading full history... ${records.size} messages found`, true);
+        showToast(translate("loadingHistory", { count: records.size }), true);
       }
 
       if (rounds >= EXPORT_MAX_ROUNDS) {
-        throw new Error("Poe kept loading history for too long. Please try again.");
+        throw new Error(translate("historyTooLong"));
       }
 
       collectExportMessages(records);
@@ -1269,7 +1442,7 @@
       let blob;
 
       if (format === "pdf") {
-        showToast(`Creating PDF... ${records.size} messages`, true);
+        showToast(translate("creatingPdf", { count: records.size }), true);
         blob = await Pdf.createPdfBlob(payload);
       } else if (format === "txt") {
         blob = new Blob([Export.renderText(payload)], { type: "text/plain;charset=utf-8" });
@@ -1280,7 +1453,7 @@
       }
 
       downloadBlob(blob, filename);
-      showToast(`Exported ${records.size} messages as ${format.toUpperCase()}.`);
+      showToast(translate("exported", { count: records.size, format: format.toUpperCase() }));
       return { ok: true, count: records.size, filename, format };
     } finally {
       if (document.contains(scrollContainer)) {
@@ -1306,7 +1479,7 @@
     }
     if (draft.overlapsHighlight) {
       closeEditor();
-      showToast("This selection overlaps an existing highlight.");
+      showToast(translate("overlap"));
       return;
     }
     openEditor(draft);
@@ -1341,6 +1514,7 @@
       document.documentElement.dataset.immersiveTranslatePageTheme === "dark" ||
       (channels.length === 3 ? luminance < 140 : matchMedia("(prefers-color-scheme: dark)").matches);
     host.dataset.theme = dark ? "dark" : "light";
+    applyUiTranslations();
   }
 
   function handleRouteChange() {
@@ -1448,7 +1622,7 @@
       const format = formatOption.dataset.format;
       closeExportDialog();
       requestConversationExport(format).catch((error) => {
-        const reason = error instanceof Error ? error.message : "Export failed.";
+        const reason = error instanceof Error ? error.message : translate("exportFailed");
         showToast(reason);
       });
       return;
@@ -1545,7 +1719,7 @@
       requestConversationExport(message.format || "md")
         .then(sendResponse)
         .catch((error) => {
-          const reason = error instanceof Error ? error.message : "Export failed.";
+          const reason = error instanceof Error ? error.message : translate("exportFailed");
           showToast(reason);
           sendResponse({ ok: false, error: reason });
         });

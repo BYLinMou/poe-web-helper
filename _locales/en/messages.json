@@ -1,0 +1,13 @@
+{
+  "extensionName": { "message": "Poe Notes" },
+  "extensionDescription": { "message": "Highlight and quote Poe passages, and export complete conversation history." },
+  "popupSubtitle": { "message": "Private highlights for Poe" },
+  "checkingPage": { "message": "Checking this page..." },
+  "highlightsOnPage": { "message": "Highlights on this page" },
+  "enableHighlights": { "message": "Enable highlights" },
+  "clearPage": { "message": "Clear this page" },
+  "openConversation": { "message": "Open a conversation on poe.com" },
+  "readyOnPage": { "message": "Ready on this Poe page" },
+  "highlightsPaused": { "message": "Highlights are paused" },
+  "clearConfirm": { "message": "Delete all highlights saved for this page?" }
+}
