@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Poe Notes",
-  "description": "Highlight passages in Poe conversations and attach private notes.",
-  "version": "0.1.0",
+  "description": "Highlight and quote Poe passages, and export complete conversation history.",
+  "version": "0.2.0",
   "icons": {
     "16": "assets/icon-16.png",
     "32": "assets/icon-32.png",
@@ -31,7 +31,12 @@
         "content/page.css"
       ],
       "js": [
+        "vendor/turndown-7.2.4.js",
+        "vendor/turndown-plugin-gfm-1.0.2.js",
+        "vendor/jspdf-4.2.1.umd.min.js",
         "content/anchor.js",
+        "content/export.js",
+        "content/pdf.js",
         "content/content.js"
       ],
       "run_at": "document_idle"

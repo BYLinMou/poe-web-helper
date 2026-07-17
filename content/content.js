@@ -7,13 +7,39 @@
   globalThis.__poeNotesLoaded = true;
 
   const Anchor = globalThis.PoeNotesAnchor;
+  const Export = globalThis.PoeNotesExport;
+  const Pdf = globalThis.PoeNotesPdf;
   const STORAGE_PREFIX = "poe-notes:page:";
   const SETTINGS_KEY = "poe-notes:settings";
   const MESSAGE_SELECTOR = '[id^="message-"]';
   const TEXT_SELECTOR = '[class*="Message_selectableText__"]';
+  const SCROLL_CONTAINER_SELECTOR = '[class*="ChatMessagesScrollWrapper_scrollableContainerWrapper__"]';
+  const PAGING_TRIGGER_SELECTOR = '[class*="InfiniteScroll_pagingTrigger__"]';
+  const BOT_NAME_SELECTOR = '[class*="BotHeader_name__"]';
+  const RIGHT_MESSAGE_SELECTOR = '[class*="ChatMessage_rightSideMessageWrapper__"]';
+  const HEADER_ACTIONS_SELECTOR = 'header[class*="BaseNavbar_chatTitleNavbar__"] [class*="ChatPageNavbar_rightNavItemWrapper__"]';
+  const NATIVE_EXPORT_SELECTOR = "[data-poe-notes-native-export]";
+  const DOWNLOAD_ICON = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
+      <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
   const COLORS = ["yellow", "green", "blue", "pink", "purple"];
   const CONTEXT_LENGTH = 40;
   const MAX_QUOTE_LENGTH = 12000;
+  const EXPORT_PROGRESS_TIMEOUT = 2200;
+  const EXPORT_STABLE_ROUNDS = 3;
+  const EXPORT_MAX_ROUNDS = 500;
+  const markdownConverter = globalThis.TurndownService
+    ? new globalThis.TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+      bulletListMarker: "-"
+    })
+    : null;
+  if (markdownConverter && globalThis.turndownPluginGfm?.gfm) {
+    markdownConverter.use(globalThis.turndownPluginGfm.gfm);
+  }
   const UI_STYLES = `
     :host {
       --panel: #25272b;
@@ -48,6 +74,104 @@
 
     *, *::before, *::after { box-sizing: border-box; }
     [hidden] { display: none !important; }
+
+    .export-backdrop {
+      position: fixed;
+      z-index: 4;
+      inset: 0;
+      display: grid;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.54);
+      pointer-events: auto;
+    }
+
+    .export-dialog {
+      width: min(360px, calc(100vw - 24px));
+      padding: 14px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      box-shadow: var(--shadow);
+    }
+
+    .export-dialog-header {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .export-dialog-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .export-close {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      font: 22px/1 Inter, ui-sans-serif, sans-serif;
+    }
+
+    .export-close:hover { color: var(--text); background: var(--panel-raised); }
+    .export-close:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+
+    .format-list {
+      display: grid;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .format-option {
+      display: flex;
+      width: 100%;
+      min-height: 50px;
+      align-items: center;
+      gap: 11px;
+      padding: 7px 10px;
+      color: var(--text);
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      outline: none;
+      cursor: pointer;
+      text-align: left;
+      font: 600 13px/1.2 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .format-option:last-child { border-bottom: 0; }
+    .format-option:hover { background: var(--panel-raised); }
+    .format-option:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+
+    .format-badge {
+      display: grid;
+      width: 42px;
+      height: 30px;
+      flex: 0 0 42px;
+      place-items: center;
+      color: var(--primary);
+      background: var(--panel-raised);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font: 700 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: 0;
+    }
 
     .selection-menu {
       position: fixed;
@@ -219,8 +343,8 @@
     .toast {
       position: fixed;
       z-index: 3;
+      top: calc(env(safe-area-inset-top, 0px) + 16px);
       left: 50%;
-      bottom: 24px;
       max-width: min(360px, calc(100vw - 24px));
       padding: 8px 11px;
       color: var(--text);
@@ -234,6 +358,8 @@
     }
 
     @media (max-width: 480px) {
+      .export-backdrop { padding: 12px; }
+      .export-dialog { padding: 12px; }
       .panel { padding: 11px; }
       .color-row { gap: 6px; }
       .swatch { width: 22px; height: 22px; flex-basis: 22px; }
@@ -252,6 +378,9 @@
   let restoreTimer = null;
   let toastTimer = null;
   let routeTimer = null;
+  let nativeInjectionTimer = null;
+  let exportPromise = null;
+  let exportDialogReturnFocus = null;
 
   const host = document.createElement("div");
   host.id = "poe-notes-ui";
@@ -259,6 +388,20 @@
   const shadow = host.attachShadow({ mode: "open" });
   shadow.innerHTML = `
     <style>${UI_STYLES}</style>
+    <div class="export-backdrop" hidden>
+      <section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="poe-notes-export-title">
+        <div class="export-dialog-header">
+          <h2 class="export-dialog-title" id="poe-notes-export-title">Download</h2>
+          <button class="export-close" type="button" aria-label="Close" title="Close">&times;</button>
+        </div>
+        <div class="format-list">
+          <button class="format-option" type="button" data-format="md"><span class="format-badge">MD</span><span>Markdown</span></button>
+          <button class="format-option" type="button" data-format="txt"><span class="format-badge">TXT</span><span>Plain text</span></button>
+          <button class="format-option" type="button" data-format="pdf"><span class="format-badge">PDF</span><span>PDF document</span></button>
+          <button class="format-option" type="button" data-format="json"><span class="format-badge">{ }</span><span>JSON data</span></button>
+        </div>
+      </section>
+    </div>
     <div class="selection-menu" role="toolbar" aria-label="Text actions" hidden>
       <button class="selection-action highlight-action" type="button">Highlight</button>
       <button class="selection-action quote-action" type="button">Quote</button>
@@ -282,6 +425,9 @@
   `;
   document.documentElement.append(host);
 
+  const exportBackdrop = shadow.querySelector(".export-backdrop");
+  const exportDialog = shadow.querySelector(".export-dialog");
+  const exportCloseButton = shadow.querySelector(".export-close");
   const selectionMenu = shadow.querySelector(".selection-menu");
   const panel = shadow.querySelector(".panel");
   const quoteElement = shadow.querySelector(".quote");
@@ -455,13 +601,183 @@
     document.getSelection()?.removeAllRanges();
   }
 
-  function showToast(message) {
+  function showToast(message, persistent = false) {
     clearTimeout(toastTimer);
     toast.textContent = message;
     toast.hidden = false;
-    toastTimer = setTimeout(() => {
-      toast.hidden = true;
-    }, 2600);
+    if (!persistent) {
+      toastTimer = setTimeout(() => {
+        toast.hidden = true;
+      }, 2600);
+    }
+  }
+
+  function downloadLabel(referenceText = "") {
+    const interfaceText = referenceText || document.querySelector(HEADER_ACTIONS_SELECTOR)?.textContent || "";
+    if (/重新命名|釘選|邀請/.test(interfaceText)) {
+      return "下載對話";
+    }
+    if (/重命名|置顶|钉选|邀请/.test(interfaceText)) {
+      return "下载对话";
+    }
+    const language = document.documentElement.lang.toLowerCase();
+    if (language.startsWith("zh-hant") || language.startsWith("zh-tw") || language.startsWith("zh-hk")) {
+      return "下載對話";
+    }
+    if (language.startsWith("zh")) {
+      return "下载对话";
+    }
+    return "Download";
+  }
+
+  function closeExportDialog() {
+    if (exportBackdrop.hidden) {
+      return;
+    }
+    exportBackdrop.hidden = true;
+    exportDialogReturnFocus?.focus?.({ preventScroll: true });
+    exportDialogReturnFocus = null;
+  }
+
+  function openExportDialog() {
+    if (exportPromise) {
+      showToast("A conversation export is already in progress.");
+      return;
+    }
+    if (!document.querySelector(`${MESSAGE_SELECTOR} ${TEXT_SELECTOR}`)) {
+      showToast("Open a Poe conversation before exporting.");
+      return;
+    }
+
+    closeEditor();
+    hideTooltip();
+    exportDialogReturnFocus = document.activeElement;
+    shadow.querySelector(".export-dialog-title").textContent = downloadLabel();
+    exportBackdrop.hidden = false;
+    requestAnimationFrame(() => exportCloseButton.focus({ preventScroll: true }));
+  }
+
+  function prepareNativeExportControl(control) {
+    control.dataset.poeNotesNativeExport = "true";
+    control.removeAttribute("id");
+    control.removeAttribute("aria-controls");
+    control.removeAttribute("aria-expanded");
+    control.removeAttribute("data-state");
+    control.setAttribute("aria-label", downloadLabel());
+    control.setAttribute("title", downloadLabel());
+    if (exportPromise) {
+      control.setAttribute("aria-disabled", "true");
+      if (control instanceof HTMLButtonElement) {
+        control.disabled = true;
+      }
+    }
+    control.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const expandedButton = [...document.querySelectorAll('button[aria-expanded="true"]')]
+        .find((button) => !button.matches(NATIVE_EXPORT_SELECTOR));
+      expandedButton?.click();
+      openExportDialog();
+    });
+    return control;
+  }
+
+  function setNativeExportBusy(busy) {
+    document.querySelectorAll(NATIVE_EXPORT_SELECTOR).forEach((control) => {
+      control.toggleAttribute("aria-busy", busy);
+      control.setAttribute("aria-disabled", String(busy));
+      if (control instanceof HTMLButtonElement) {
+        control.disabled = busy;
+      }
+    });
+  }
+
+  function installHeaderExportControl() {
+    const actionGroup = document.querySelector(HEADER_ACTIONS_SELECTOR);
+    if (!actionGroup || actionGroup.querySelector(NATIVE_EXPORT_SELECTOR)) {
+      return;
+    }
+
+    const template = [...actionGroup.children].find((child) => child instanceof HTMLButtonElement) ||
+      actionGroup.querySelector("button");
+    if (!template) {
+      return;
+    }
+
+    const button = prepareNativeExportControl(template.cloneNode(false));
+    button.type = "button";
+    button.innerHTML = DOWNLOAD_ICON;
+    actionGroup.insertBefore(button, actionGroup.firstElementChild);
+  }
+
+  function normalizedLabel(element) {
+    return (element.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function matchesAnyLabel(element, labels) {
+    const text = normalizedLabel(element);
+    return labels.some((label) => text === label || text.startsWith(`${label} `));
+  }
+
+  function installMenuExportControl() {
+    const candidates = [...document.querySelectorAll(
+      '[role="menuitem"], [role="menu"] button, [class*="DropdownMenu"] button'
+    )].filter((element) => !element.matches(NATIVE_EXPORT_SELECTOR));
+    const renameLabels = ["重新命名", "重新命名對話", "重命名", "重命名对话", "Rename", "Rename chat"];
+    const pinLabels = [
+      "釘選對話", "取消釘選對話", "置頂對話", "置顶对话", "钉选对话",
+      "Pin chat", "Pin conversation", "Unpin chat", "Unpin conversation"
+    ];
+    const renameItem = candidates.find((element) => matchesAnyLabel(element, renameLabels));
+    const pinItem = candidates.find((element) => matchesAnyLabel(element, pinLabels));
+    if (!renameItem || !pinItem || renameItem.parentElement !== pinItem.parentElement) {
+      return;
+    }
+    if (renameItem.parentElement.querySelector(NATIVE_EXPORT_SELECTOR)) {
+      return;
+    }
+
+    const item = prepareNativeExportControl(renameItem.cloneNode(true));
+    const menuDownloadLabel = downloadLabel(normalizedLabel(renameItem));
+    item.removeAttribute("title");
+    item.setAttribute("aria-label", menuDownloadLabel);
+    item.querySelectorAll("[id], [aria-controls], [aria-expanded], [data-state]").forEach((element) => {
+      element.removeAttribute("id");
+      element.removeAttribute("aria-controls");
+      element.removeAttribute("aria-expanded");
+      element.removeAttribute("data-state");
+    });
+    const icon = item.querySelector("svg");
+    if (icon) {
+      icon.outerHTML = DOWNLOAD_ICON;
+    }
+    const textWalker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+    let textNode = textWalker.nextNode();
+    let replacedLabel = false;
+    while (textNode) {
+      if (renameLabels.includes(textNode.data.trim())) {
+        textNode.data = menuDownloadLabel;
+        replacedLabel = true;
+        break;
+      }
+      textNode = textWalker.nextNode();
+    }
+    if (!replacedLabel) {
+      const label = item.querySelector("span") || item;
+      label.textContent = menuDownloadLabel;
+    }
+    renameItem.parentElement.insertBefore(item, pinItem);
+  }
+
+  function scheduleNativeExportControls() {
+    if (nativeInjectionTimer) {
+      return;
+    }
+    nativeInjectionTimer = setTimeout(() => {
+      nativeInjectionTimer = null;
+      installHeaderExportControl();
+      installMenuExportControl();
+    }, 40);
   }
 
   function showTooltip(annotation, target) {
@@ -696,6 +1012,235 @@
     showToast("Quote added to the Poe message box.");
   }
 
+  function findScrollContainer() {
+    const preferred = document.querySelector(SCROLL_CONTAINER_SELECTOR);
+    if (preferred) {
+      return preferred;
+    }
+
+    const message = document.querySelector(MESSAGE_SELECTOR);
+    let candidate = message?.parentElement || null;
+    while (candidate && candidate !== document.body) {
+      const style = getComputedStyle(candidate);
+      if (/auto|scroll/.test(style.overflowY) && candidate.scrollHeight > candidate.clientHeight) {
+        return candidate;
+      }
+      candidate = candidate.parentElement;
+    }
+    return null;
+  }
+
+  function messageAuthor(messageRoot) {
+    if (messageRoot.querySelector(RIGHT_MESSAGE_SELECTOR)) {
+      return "You";
+    }
+
+    const botName = messageRoot.querySelector(BOT_NAME_SELECTOR)?.textContent?.trim();
+    if (botName) {
+      return botName;
+    }
+
+    const avatarName = messageRoot.querySelector('img[alt*=" Bot"]')?.alt
+      ?.replace(/\s+Bot(?:\s+avatar)?\s*$/i, "")
+      .trim();
+    return avatarName || "Assistant";
+  }
+
+  function collectExportMessages(records) {
+    const roots = [...document.querySelectorAll(MESSAGE_SELECTOR)];
+    for (const root of roots) {
+      const textRoot = getTextRoot(root);
+      const text = textRoot?.innerText?.trim() || textRoot?.textContent?.trim();
+      if (!text) {
+        continue;
+      }
+      records.set(root.id, {
+        id: root.id,
+        author: messageAuthor(root),
+        text,
+        markdown: markdownConverter
+          ? markdownConverter.turndown(textRoot.innerHTML).trim()
+          : text
+      });
+    }
+    return roots.filter((root) => getTextRoot(root));
+  }
+
+  function historySignature() {
+    const messages = [...document.querySelectorAll(MESSAGE_SELECTOR)]
+      .filter((root) => getTextRoot(root));
+    return `${messages[0]?.id || "none"}:${messages.length}`;
+  }
+
+  function waitForHistoryProgress(previousSignature, scrollContainer) {
+    return new Promise((resolve) => {
+      let observer;
+      let pollTimer;
+      let timeoutTimer;
+
+      const finish = (changed) => {
+        observer?.disconnect();
+        clearInterval(pollTimer);
+        clearTimeout(timeoutTimer);
+        resolve(changed);
+      };
+      const check = () => {
+        if (!document.contains(scrollContainer)) {
+          finish(false);
+        } else if (historySignature() !== previousSignature) {
+          finish(true);
+        }
+      };
+
+      observer = new MutationObserver(check);
+      observer.observe(scrollContainer, { childList: true, subtree: true });
+      pollTimer = setInterval(check, 120);
+      timeoutTimer = setTimeout(() => finish(false), EXPORT_PROGRESS_TIMEOUT);
+    });
+  }
+
+  function captureScrollPosition(scrollContainer) {
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const anchor = [...document.querySelectorAll(MESSAGE_SELECTOR)].find((message) => {
+      const rect = message.getBoundingClientRect();
+      return rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+    });
+    return {
+      id: anchor?.id || "",
+      offset: anchor ? anchor.getBoundingClientRect().top - containerRect.top : 0,
+      scrollTop: scrollContainer.scrollTop
+    };
+  }
+
+  function restoreScrollPosition(scrollContainer, position) {
+    const anchor = position.id ? document.getElementById(position.id) : null;
+    if (!anchor) {
+      scrollContainer.scrollTop = position.scrollTop;
+      return;
+    }
+
+    anchor.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" });
+    const delta = anchor.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - position.offset;
+    scrollContainer.scrollBy({ top: delta, left: 0, behavior: "instant" });
+  }
+
+  function scrollToHistoryStart(scrollContainer) {
+    const trigger = scrollContainer.querySelector(PAGING_TRIGGER_SELECTOR) ||
+      document.querySelector(PAGING_TRIGGER_SELECTOR);
+    const firstMessage = document.querySelector(MESSAGE_SELECTOR);
+    const target = trigger || firstMessage;
+    target?.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" });
+  }
+
+  function hasHistoryLoadError(scrollContainer) {
+    return Boolean(scrollContainer.querySelector('[class*="PaginationNetworkError_"]'));
+  }
+
+  function isHistoryLoading(scrollContainer) {
+    return Boolean(scrollContainer.querySelector(
+      '[aria-busy="true"], [class*="InfiniteScroll_"] [class*="LoadingIndicator_"]'
+    ));
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  async function exportFullConversation(format = "md") {
+    format = ["md", "txt", "pdf", "json"].includes(format) ? format : "md";
+    const scrollContainer = findScrollContainer();
+    if (!scrollContainer) {
+      throw new Error("Open a Poe conversation before exporting.");
+    }
+
+    const records = new Map();
+    const originalPosition = captureScrollPosition(scrollContainer);
+    const exportPageKey = Anchor.canonicalPageKey(location.href);
+    let stableRounds = 0;
+    let rounds = 0;
+
+    closeEditor();
+    collectExportMessages(records);
+    showToast(`Loading full history... ${records.size} messages found`, true);
+
+    try {
+      while (stableRounds < EXPORT_STABLE_ROUNDS && rounds < EXPORT_MAX_ROUNDS) {
+        if (
+          !document.contains(scrollContainer) ||
+          Anchor.canonicalPageKey(location.href) !== exportPageKey
+        ) {
+          throw new Error("The Poe conversation changed during export.");
+        }
+        const signature = historySignature();
+        const progressPromise = waitForHistoryProgress(signature, scrollContainer);
+        scrollToHistoryStart(scrollContainer);
+        const changed = await progressPromise;
+        collectExportMessages(records);
+        if (hasHistoryLoadError(scrollContainer)) {
+          throw new Error("Poe could not load earlier messages. Please retry the export.");
+        }
+        stableRounds = changed || isHistoryLoading(scrollContainer) ? 0 : stableRounds + 1;
+        rounds += 1;
+        showToast(`Loading full history... ${records.size} messages found`, true);
+      }
+
+      if (rounds >= EXPORT_MAX_ROUNDS) {
+        throw new Error("Poe kept loading history for too long. Please try again.");
+      }
+
+      collectExportMessages(records);
+      const title = Export.conversationTitle(document.title);
+      const exportedAt = new Date().toISOString();
+      const messages = Export.sortMessages([...records.values()]);
+      const payload = {
+        title,
+        url: location.href,
+        exportedAt,
+        messages
+      };
+      const filename = Export.safeFilename(title, format);
+      let blob;
+
+      if (format === "pdf") {
+        showToast(`Creating PDF... ${records.size} messages`, true);
+        blob = await Pdf.createPdfBlob(payload);
+      } else if (format === "txt") {
+        blob = new Blob([Export.renderText(payload)], { type: "text/plain;charset=utf-8" });
+      } else if (format === "json") {
+        blob = new Blob([Export.renderJson(payload)], { type: "application/json;charset=utf-8" });
+      } else {
+        blob = new Blob([Export.renderMarkdown(payload)], { type: "text/markdown;charset=utf-8" });
+      }
+
+      downloadBlob(blob, filename);
+      showToast(`Exported ${records.size} messages as ${format.toUpperCase()}.`);
+      return { ok: true, count: records.size, filename, format };
+    } finally {
+      if (document.contains(scrollContainer)) {
+        restoreScrollPosition(scrollContainer, originalPosition);
+      }
+    }
+  }
+
+  function requestConversationExport(format = "md") {
+    if (!exportPromise) {
+      exportPromise = exportFullConversation(format).finally(() => {
+        exportPromise = null;
+        setNativeExportBusy(false);
+      });
+      setNativeExportBusy(true);
+    }
+    return exportPromise;
+  }
+
   function startHighlight() {
     if (!draft) {
       return;
@@ -747,6 +1292,7 @@
         return;
       }
       closeEditor();
+      closeExportDialog();
       hideTooltip();
       unwrapMarks();
       pageKey = nextKey;
@@ -825,6 +1371,11 @@
       editAnnotation(mark.dataset.poeNotesId, mark);
       return;
     }
+    if (event.key === "Escape" && !exportBackdrop.hidden) {
+      event.preventDefault();
+      closeExportDialog();
+      return;
+    }
     if (event.key === "Escape" && (!panel.hidden || !selectionMenu.hidden)) {
       event.preventDefault();
       closeEditor();
@@ -832,6 +1383,20 @@
   }, true);
 
   shadow.addEventListener("click", (event) => {
+    const formatOption = event.target.closest(".format-option");
+    if (formatOption) {
+      const format = formatOption.dataset.format;
+      closeExportDialog();
+      requestConversationExport(format).catch((error) => {
+        const reason = error instanceof Error ? error.message : "Export failed.";
+        showToast(reason);
+      });
+      return;
+    }
+    if (event.target.closest(".export-close") || event.target === exportBackdrop) {
+      closeExportDialog();
+      return;
+    }
     if (event.target.closest(".highlight-action")) {
       startHighlight();
       return;
@@ -855,6 +1420,24 @@
   });
 
   shadow.addEventListener("keydown", (event) => {
+    if (!exportBackdrop.hidden && event.key === "Escape") {
+      event.preventDefault();
+      closeExportDialog();
+      return;
+    }
+    if (!exportBackdrop.hidden && event.key === "Tab") {
+      const focusable = [...exportDialog.querySelectorAll("button:not(:disabled)")];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && shadow.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && shadow.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       saveDraft();
@@ -884,8 +1467,29 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "POE_NOTES_GET_STATE") {
-      sendResponse({ enabled: settings.enabled, count: annotations.length, pageKey });
+      sendResponse({
+        enabled: settings.enabled,
+        count: annotations.length,
+        messageCount: document.querySelectorAll(`${MESSAGE_SELECTOR} ${TEXT_SELECTOR}`).length,
+        exporting: Boolean(exportPromise),
+        pageKey
+      });
       return;
+    }
+    if (message?.type === "POE_NOTES_OPEN_EXPORT_DIALOG") {
+      openExportDialog();
+      sendResponse({ ok: true });
+      return;
+    }
+    if (message?.type === "POE_NOTES_EXPORT_CONVERSATION") {
+      requestConversationExport(message.format || "md")
+        .then(sendResponse)
+        .catch((error) => {
+          const reason = error instanceof Error ? error.message : "Export failed.";
+          showToast(reason);
+          sendResponse({ ok: false, error: reason });
+        });
+      return true;
     }
     if (message?.type === "POE_NOTES_CLEAR_PAGE") {
       annotations = [];
@@ -914,9 +1518,11 @@
     }
     handleRouteChange();
     syncTheme();
+    scheduleNativeExportControls();
     restoreAll();
   });
   observer.observe(document.body, { childList: true, subtree: true });
   installRouteWatcher();
+  scheduleNativeExportControls();
   loadState();
 })();

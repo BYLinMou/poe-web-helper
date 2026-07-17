@@ -42,6 +42,22 @@
         const messageListeners = [];
 
         window.__fixtureStore = store;
+        window.__fixtureSendMessage = (message) => new Promise((resolve, reject) => {
+          const listener = messageListeners[0];
+          if (!listener) {
+            reject(new Error("No content message listener is installed"));
+            return;
+          }
+          let responded = false;
+          const sendResponse = (response) => {
+            responded = true;
+            resolve(response);
+          };
+          const asynchronous = listener(message, {}, sendResponse);
+          if (asynchronous !== true && !responded) {
+            resolve(undefined);
+          }
+        });
         window.chrome = {
           storage: {
             local: {
@@ -72,9 +88,11 @@
     </script>
   </head>
   <body>
-    <main class="page">
+    <main class="page ChatMessagesScrollWrapper_scrollableContainerWrapper__fixture">
+      <div class="InfiniteScroll_pagingTrigger__fixture"></div>
       <p class="bot">claude-sonnet</p>
       <article id="message-491375933718" data-complete="true">
+        <div class="BotHeader_name__fixture">claude-sonnet</div>
         <div class="Message_selectableText__fixture">
           <p>The quick <strong>brown fox</strong> jumps over the quiet river.</p>
           <p>A second paragraph confirms that highlights survive structured replies.</p>
@@ -87,10 +105,42 @@
       </div>
     </footer>
 
+    <script src="../vendor/turndown-7.2.4.js"></script>
+    <script src="../vendor/turndown-plugin-gfm-1.0.2.js"></script>
+    <script src="../vendor/jspdf-4.2.1.umd.min.js"></script>
     <script src="../content/anchor.js"></script>
+    <script src="../content/export.js"></script>
+    <script src="../content/pdf.js"></script>
     <script src="../content/content.js"></script>
     <script>
       const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+      const pagingTrigger = document.querySelector('.InfiniteScroll_pagingTrigger__fixture');
+      window.__pagingAttempts = 0;
+      pagingTrigger.scrollIntoView = () => {
+        window.__pagingAttempts += 1;
+        if (document.querySelector('#message-491375933700')) return;
+        setTimeout(() => {
+          if (document.querySelector('#message-491375933700')) return;
+          const earlier = document.createElement('article');
+          earlier.id = 'message-491375933700';
+          earlier.dataset.complete = 'true';
+          earlier.innerHTML = `
+            <div class="ChatMessage_rightSideMessageWrapper__fixture">
+              <div class="Message_selectableText__fixture"><p>An earlier question.</p></div>
+            </div>
+          `;
+          document.querySelector('.page').prepend(earlier);
+        }, 120);
+      };
+
+      document.addEventListener('click', (event) => {
+        const download = event.target instanceof Element ? event.target.closest('a[download]') : null;
+        if (!download) return;
+        event.preventDefault();
+        window.__fixtureDownload = fetch(download.href).then((response) => response.text());
+        window.__fixtureFilename = download.download;
+      }, true);
 
       function assert(value, message) {
         if (!value) throw new Error(message);
@@ -172,6 +222,19 @@
         assert(document.querySelectorAll('[data-poe-notes-id]').length === 0, 'delete did not remove marks');
         const pageKey = Object.keys(window.__fixtureStore).find((key) => key.startsWith('poe-notes:page:'));
         assert(pageKey && window.__fixtureStore[pageKey].length === 0, 'delete was not persisted');
+
+        const exportResult = await window.__fixtureSendMessage({ type: 'POE_NOTES_EXPORT_CONVERSATION' });
+        const exportedMarkdown = await window.__fixtureDownload;
+        assert(exportResult?.ok, `export failed: ${exportResult?.error || 'unknown error'}`);
+        assert(exportResult.count === 2, 'export did not collect the asynchronously loaded message');
+        assert(window.__pagingAttempts >= 4, 'export stopped before history became stable');
+        assert(window.__fixtureFilename === 'Poe Notes fixture.md', 'export filename is wrong');
+        assert(exportedMarkdown.includes('## You\n\nAn earlier question.'), 'earlier user message is missing');
+        assert(exportedMarkdown.includes('## claude-sonnet'), 'assistant author is missing');
+        assert(
+          exportedMarkdown.indexOf('An earlier question.') < exportedMarkdown.indexOf('A second paragraph'),
+          'exported messages are not chronological'
+        );
         document.body.dataset.testResult = 'pass';
         document.title = 'PASS - Poe Notes fixture';
       }
