@@ -13,7 +13,54 @@
         background: #111214;
         font: 16px/1.62 Arial, sans-serif;
       }
-      .page { width: min(760px, calc(100% - 40px)); margin: 58px auto; }
+      body[data-test-result="pass"]::before,
+      body[data-test-result="fail"]::before {
+        position: fixed;
+        z-index: 2147483647;
+        top: 12px;
+        left: 50%;
+        padding: 7px 10px;
+        color: #fff;
+        background: #18794e;
+        border-radius: 4px;
+        content: "PASS";
+        font: 700 13px/1.2 Arial, sans-serif;
+        transform: translateX(-50%);
+      }
+      body[data-test-result="fail"]::before {
+        max-width: calc(100vw - 24px);
+        background: #c93737;
+        content: "FAIL: " attr(data-test-error);
+      }
+      .fixture-header {
+        display: flex;
+        min-height: 64px;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 20px;
+        background: #1b1c20;
+        border-bottom: 1px solid #303238;
+      }
+      .ChatPageNavbar_rightNavItemWrapper__fixture { display: flex; align-items: center; gap: 8px; }
+      .fixture-native-button {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        place-items: center;
+        color: #f2f3f5;
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+      }
+      .fixture-native-button .Button_label__fixture {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+      }
+      .page { width: min(760px, calc(100% - 40px)); margin: 36px auto 100px; }
       .bot { margin: 0 0 8px; color: #aab0b9; font-size: 13px; }
       .Message_selectableText__fixture { max-width: 660px; }
       p { margin: 0 0 16px; }
@@ -88,6 +135,14 @@
     </script>
   </head>
   <body>
+    <header class="BaseNavbar_chatTitleNavbar__fixture fixture-header">
+      <span class="ChatPageNavbar_rightNavItemWrapper__fixture">
+        <button class="Button_root__fixture fixture-native-button" type="button">
+          <span aria-hidden="true">+</span>
+          <span class="Button_label__fixture">Invite</span>
+        </button>
+      </span>
+    </header>
     <main class="page ChatMessagesScrollWrapper_scrollableContainerWrapper__fixture">
       <div class="InfiniteScroll_pagingTrigger__fixture"></div>
       <p class="bot">claude-sonnet</p>
@@ -163,31 +218,39 @@
       }
 
       async function run() {
+        const searchParams = new URL(location.href).searchParams;
         const shadow = await selectFixtureText();
         const selectionMenu = shadow.querySelector('.selection-menu');
         const panel = shadow.querySelector('.panel');
         assert(!selectionMenu.hidden, 'selection actions did not open');
         assert(panel.hidden, 'highlight editor opened before choosing an action');
 
-        if (new URL(location.href).searchParams.has('visual') || innerWidth >= 900 || innerWidth <= 420) {
+        if (!searchParams.has('bookmarksVisual') && (
+          searchParams.has('visual') || innerWidth >= 900 || innerWidth <= 420
+        )) {
           document.body.dataset.testResult = 'visual-ready';
           return;
         }
 
-        const composer = document.querySelector('.GrowingTextArea_textArea__fixture');
-        composer.setSelectionRange(8, 8);
-        composer.dataset.inputEvents = '0';
-        composer.addEventListener('input', () => {
-          composer.dataset.inputEvents = String(Number(composer.dataset.inputEvents) + 1);
-        });
-        shadow.querySelector('.quote-action').click();
-        await wait(150);
+        if (!searchParams.has('bookmarksVisual')) {
+          const composer = document.querySelector('.GrowingTextArea_textArea__fixture');
+          composer.setSelectionRange(8, 8);
+          composer.dataset.inputEvents = '0';
+          composer.addEventListener('input', () => {
+            composer.dataset.inputEvents = String(Number(composer.dataset.inputEvents) + 1);
+          });
+          shadow.querySelector('.quote-action').click();
+          await wait(150);
 
-        const insertedQuote = '> quick brown fox\n\n';
-        assert(composer.value === `${insertedQuote}Existing prompt`, 'quote did not preserve the existing draft');
-        assert(composer.selectionStart === 8 + insertedQuote.length, 'composer cursor was not preserved');
-        assert(composer.selectionEnd === composer.selectionStart, 'composer selection was not preserved');
-        assert(composer.dataset.inputEvents === '1', 'quote did not dispatch an input event');
+          const insertedQuote = '> quick brown fox\n\n';
+          assert(composer.value === `${insertedQuote}Existing prompt`, 'quote did not preserve the existing draft');
+          assert(
+            composer.selectionStart === 8 + insertedQuote.length,
+            `composer cursor was not preserved: expected ${8 + insertedQuote.length}, got ${composer.selectionStart}`
+          );
+          assert(composer.selectionEnd === composer.selectionStart, 'composer selection was not preserved');
+          assert(composer.dataset.inputEvents === '1', 'quote did not dispatch an input event');
+        }
 
         await selectFixtureText();
         assert(!selectionMenu.hidden, 'selection actions did not reopen');
@@ -204,6 +267,34 @@
         let marks = document.querySelectorAll('[data-poe-notes-id]');
         assert(marks.length === 2, 'multi-node selection was not fully highlighted');
         assert([...marks].every((mark) => mark.dataset.poeNotesHighlight === 'blue'), 'color was not saved');
+
+        const headerActions = document.querySelector('.ChatPageNavbar_rightNavItemWrapper__fixture');
+        const bookmarkButton = headerActions.querySelector('[data-poe-notes-native-bookmarks]');
+        const exportButton = headerActions.querySelector('[data-poe-notes-native-export]');
+        assert(bookmarkButton, 'bookmark button was not installed');
+        assert(exportButton, 'export button was not installed');
+        assert(headerActions.children[0] === bookmarkButton, 'bookmark button is not first');
+        assert(headerActions.children[1] === exportButton, 'bookmark button is not left of download');
+
+        bookmarkButton.click();
+        await wait(120);
+        const bookmarksPopover = shadow.querySelector('.bookmarks-popover');
+        let bookmarkItems = shadow.querySelectorAll('.bookmark-item');
+        assert(!bookmarksPopover.hidden, 'bookmark popover did not open');
+        assert(bookmarkItems.length === 1, 'saved highlight is missing from bookmark popover');
+        assert(bookmarkItems[0].querySelector('.bookmark-quote').textContent === 'quick brown fox', 'bookmark quote preview is wrong');
+        assert(bookmarkItems[0].querySelector('.bookmark-note').textContent === 'Useful evidence', 'bookmark note preview is wrong');
+
+        if (searchParams.has('bookmarksVisual')) {
+          document.body.dataset.testResult = 'visual-ready';
+          return;
+        }
+
+        bookmarkItems[0].click();
+        await wait(180);
+        marks = document.querySelectorAll('[data-poe-notes-id]');
+        assert(bookmarksPopover.hidden, 'bookmark popover stayed open after a jump');
+        assert([...marks].every((mark) => mark.hasAttribute('data-poe-notes-jump-target')), 'jump feedback is missing');
 
         const textRoot = document.querySelector('.Message_selectableText__fixture');
         textRoot.innerHTML = '<p>The quick <strong>brown fox</strong> jumps over the quiet river.</p><p>A second paragraph confirms that highlights survive structured replies.</p>';
@@ -222,6 +313,35 @@
         assert(document.querySelectorAll('[data-poe-notes-id]').length === 0, 'delete did not remove marks');
         const pageKey = Object.keys(window.__fixtureStore).find((key) => key.startsWith('poe-notes:page:'));
         assert(pageKey && window.__fixtureStore[pageKey].length === 0, 'delete was not persisted');
+
+        const earlierAnnotation = {
+          id: 'earlier-highlight',
+          messageId: 'message-491375933700',
+          start: 3,
+          end: 19,
+          quote: 'earlier question',
+          prefix: 'An ',
+          suffix: '.',
+          color: 'green',
+          note: 'Loaded on demand',
+          createdAt: '2026-07-20T00:00:00.000Z',
+          updatedAt: '2026-07-20T00:00:00.000Z'
+        };
+        await new Promise((resolve) => chrome.storage.local.set({ [pageKey]: [earlierAnnotation] }, resolve));
+        await wait(160);
+        bookmarkButton.click();
+        await wait(100);
+        bookmarkItems = shadow.querySelectorAll('.bookmark-item');
+        assert(bookmarkItems.length === 1, 'on-demand bookmark is missing');
+        bookmarkItems[0].click();
+        await wait(650);
+
+        const earlierMessage = document.querySelector('#message-491375933700');
+        const earlierMark = earlierMessage?.querySelector('[data-poe-notes-id="earlier-highlight"]');
+        assert(window.__pagingAttempts >= 1, 'bookmark jump did not request earlier messages');
+        assert(earlierMessage, 'bookmark jump did not load the target message');
+        assert(earlierMark, 'bookmark jump did not restore the target highlight');
+        assert(earlierMark.hasAttribute('data-poe-notes-jump-target'), 'on-demand jump feedback is missing');
 
         const exportResult = await window.__fixtureSendMessage({ type: 'POE_NOTES_EXPORT_CONVERSATION' });
         const exportedMarkdown = await window.__fixtureDownload;

@@ -11,6 +11,8 @@ Poe Notes is a local Chrome extension for highlighting passages in Poe conversat
 
 Open a conversation on `https://poe.com` and select text inside one message. Choose **Highlight** to add a color and optional note, or choose **Quote** to prepend the passage as a Markdown blockquote in Poe's message box without replacing your existing draft. Click a saved highlight to edit or delete it. Notes appear on hover.
 
+Use the bookmark control to the left of the download button to browse highlights in conversation order. Selecting an item loads earlier messages when needed and jumps to the saved passage.
+
 Download controls are added to the left of Poe's header actions and between **Rename** and **Pin chat** in the conversation menu. Either control opens a format picker for Markdown, plain text, PDF, or JSON. Before creating the file, Poe Notes repeatedly loads earlier messages until the beginning of the conversation is reached.
 
 ## Development checks

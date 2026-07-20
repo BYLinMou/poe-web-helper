@@ -38,6 +38,18 @@
   outline: none;
 }
 
+[data-poe-notes-jump-target] {
+  outline: 2px solid rgba(121, 191, 255, 0.96);
+  outline-offset: 2px;
+  animation: poe-notes-jump-pulse 620ms ease-out 2;
+}
+
+@keyframes poe-notes-jump-pulse {
+  0% { outline-offset: 1px; }
+  55% { outline-offset: 5px; }
+  100% { outline-offset: 2px; }
+}
+
 [data-poe-notes-native-tooltip] {
   --poe-notes-tooltip-bg: #25262a;
   position: fixed;
@@ -55,7 +67,8 @@
   white-space: nowrap;
 }
 
-button[data-poe-notes-header-export] {
+button[data-poe-notes-header-export],
+button[data-poe-notes-header-bookmarks] {
   width: var(--pdl-comp-button-sm-height, 32px) !important;
   min-width: var(--pdl-comp-button-sm-height, 32px) !important;
   height: var(--pdl-comp-button-sm-height, 32px) !important;
@@ -64,7 +77,8 @@ button[data-poe-notes-header-export] {
   padding: 0 !important;
 }
 
-button[data-poe-notes-header-export] .poe-notes-header-export-label {
+button[data-poe-notes-header-export] .poe-notes-header-export-label,
+button[data-poe-notes-header-bookmarks] .poe-notes-header-bookmarks-label {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
@@ -92,5 +106,9 @@ button[data-poe-notes-header-export] .poe-notes-header-export-label {
 @media (prefers-reduced-motion: reduce) {
   [data-poe-notes-highlight] {
     transition: none;
+  }
+
+  [data-poe-notes-jump-target] {
+    animation: none;
   }
 }

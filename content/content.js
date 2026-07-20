@@ -19,9 +19,15 @@
   const RIGHT_MESSAGE_SELECTOR = '[class*="ChatMessage_rightSideMessageWrapper__"]';
   const HEADER_ACTIONS_SELECTOR = 'header[class*="BaseNavbar_chatTitleNavbar__"] [class*="ChatPageNavbar_rightNavItemWrapper__"]';
   const NATIVE_EXPORT_SELECTOR = "[data-poe-notes-native-export]";
+  const NATIVE_BOOKMARK_SELECTOR = "[data-poe-notes-native-bookmarks]";
   const DOWNLOAD_ICON = `
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
       <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+  const BOOKMARK_ICON = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
+      <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   `;
   const COLORS = ["yellow", "green", "blue", "pink", "purple"];
@@ -30,6 +36,7 @@
   const EXPORT_PROGRESS_TIMEOUT = 2200;
   const EXPORT_STABLE_ROUNDS = 3;
   const EXPORT_MAX_ROUNDS = 500;
+  const JUMP_MAX_ROUNDS = 120;
   const MIN_EXPORTING_TOAST_MS = 500;
   const markdownConverter = globalThis.TurndownService
     ? new globalThis.TurndownService({
@@ -45,6 +52,13 @@
     en: {
       download: "Download",
       downloadConversation: "Download conversation",
+      browseHighlights: "Browse highlights",
+      highlights: "Highlights",
+      noHighlights: "No highlights in this conversation.",
+      enableHighlightsToBrowse: "Enable highlights to jump to this passage.",
+      loadingHighlight: "Loading highlighted passage...",
+      highlightNotFound: "This highlighted passage could not be found.",
+      highlightLoadFailed: "Poe could not load this highlighted passage. Please retry.",
       close: "Close",
       plainText: "Plain text",
       pdfDocument: "PDF document",
@@ -84,6 +98,13 @@
     zhHans: {
       download: "下载",
       downloadConversation: "下载对话",
+      browseHighlights: "浏览高亮",
+      highlights: "高亮",
+      noHighlights: "此对话还没有高亮。",
+      enableHighlightsToBrowse: "请先启用高亮，再跳转到这个段落。",
+      loadingHighlight: "正在加载高亮段落...",
+      highlightNotFound: "找不到这个高亮段落。",
+      highlightLoadFailed: "Poe 无法加载这个高亮段落，请重试。",
       close: "关闭",
       plainText: "纯文本",
       pdfDocument: "PDF 文件",
@@ -123,12 +144,19 @@
     zhHant: {
       download: "下載",
       downloadConversation: "下載對話",
+      browseHighlights: "瀏覽標記",
+      highlights: "標記",
+      noHighlights: "此對話尚無標記。",
+      enableHighlightsToBrowse: "請先啟用標記，再跳轉到這個段落。",
+      loadingHighlight: "正在載入標記段落...",
+      highlightNotFound: "找不到這個標記段落。",
+      highlightLoadFailed: "Poe 無法載入這個標記段落，請重試。",
       close: "關閉",
       plainText: "純文字",
       pdfDocument: "PDF 文件",
       jsonData: "JSON 資料",
       textActions: "文字操作",
-      highlight: "螢光標記",
+      highlight: "標記",
       quote: "引用",
       editHighlight: "編輯標記",
       notePlaceholder: "新增筆記（選填）",
@@ -297,6 +325,157 @@
       border-radius: 4px;
       font: 700 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
       letter-spacing: 0;
+    }
+
+    .bookmarks-popover {
+      position: fixed;
+      z-index: 2;
+      display: flex;
+      width: min(340px, calc(100vw - 24px));
+      max-height: min(440px, calc(100vh - 80px));
+      flex-direction: column;
+      overflow: hidden;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      box-shadow: var(--shadow);
+      pointer-events: auto;
+    }
+
+    .bookmarks-header {
+      display: flex;
+      min-height: 46px;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 7px 8px 7px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bookmarks-heading {
+      display: flex;
+      min-width: 0;
+      align-items: baseline;
+      gap: 7px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .bookmarks-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .bookmarks-close {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      font: 22px/1 Inter, ui-sans-serif, sans-serif;
+    }
+
+    .bookmarks-close:hover { color: var(--text); background: var(--panel-raised); }
+    .bookmarks-close:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+
+    .bookmarks-list {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+    }
+
+    .bookmark-item {
+      display: grid;
+      width: 100%;
+      min-height: 68px;
+      grid-template-columns: 4px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 10px;
+      padding: 10px 12px;
+      color: var(--text);
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      outline: none;
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    .bookmark-item:last-child { border-bottom: 0; }
+    .bookmark-item:hover { background: var(--panel-raised); }
+    .bookmark-item:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+    .bookmark-item[aria-busy="true"] { cursor: progress; }
+    .bookmark-item:disabled { opacity: 0.58; cursor: default; }
+
+    .bookmark-color {
+      width: 4px;
+      min-height: 40px;
+      align-self: stretch;
+      background: #efae2f;
+      border-radius: 2px;
+    }
+
+    .bookmark-color[data-color="green"] { background: #35ce91; }
+    .bookmark-color[data-color="blue"] { background: #43a8ef; }
+    .bookmark-color[data-color="pink"] { background: #eb6ca9; }
+    .bookmark-color[data-color="purple"] { background: #ad78e9; }
+
+    .bookmark-item[aria-busy="true"] .bookmark-color {
+      animation: bookmark-loading 760ms ease-in-out infinite alternate;
+    }
+
+    .bookmark-copy { min-width: 0; }
+
+    .bookmark-quote,
+    .bookmark-note {
+      display: -webkit-box;
+      margin: 0;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+    }
+
+    .bookmark-quote {
+      -webkit-line-clamp: 2;
+      font-size: 13px;
+      font-weight: 550;
+      line-height: 1.38;
+    }
+
+    .bookmark-note {
+      margin-top: 4px;
+      color: var(--muted);
+      -webkit-line-clamp: 1;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .bookmarks-empty {
+      margin: 0;
+      padding: 24px 18px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    @keyframes bookmark-loading {
+      from { opacity: 0.38; }
+      to { opacity: 1; }
     }
 
     .selection-menu {
@@ -486,6 +665,7 @@
     @media (max-width: 480px) {
       .export-backdrop { padding: 12px; }
       .export-dialog { padding: 12px; }
+      .bookmarks-popover { max-height: calc(100vh - 72px); }
       .panel { padding: 11px; }
       .color-row { gap: 6px; }
       .swatch { width: 22px; height: 22px; flex-basis: 22px; }
@@ -493,6 +673,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; }
+      .bookmark-item[aria-busy="true"] .bookmark-color { animation: none; }
     }
   `;
 
@@ -509,6 +690,10 @@
   let nativeTooltip = null;
   let exportPromise = null;
   let exportDialogReturnFocus = null;
+  let bookmarkPopoverReturnFocus = null;
+  let jumpPromise = null;
+  let jumpAnnotationId = null;
+  let jumpHighlightTimer = null;
 
   const host = document.createElement("div");
   host.id = "poe-notes-ui";
@@ -530,6 +715,17 @@
         </div>
       </section>
     </div>
+    <section class="bookmarks-popover" role="dialog" aria-modal="false" aria-labelledby="poe-notes-bookmarks-title" hidden>
+      <div class="bookmarks-header">
+        <h2 class="bookmarks-heading" id="poe-notes-bookmarks-title">
+          <span class="bookmarks-title">Highlights</span>
+          <span class="bookmarks-count">0</span>
+        </h2>
+        <button class="bookmarks-close" type="button" aria-label="Close" title="Close">&times;</button>
+      </div>
+      <div class="bookmarks-list"></div>
+      <p class="bookmarks-empty">No highlights in this conversation.</p>
+    </section>
     <div class="selection-menu" role="toolbar" aria-label="Text actions" hidden>
       <button class="selection-action highlight-action" type="button">Highlight</button>
       <button class="selection-action quote-action" type="button">Quote</button>
@@ -556,6 +752,11 @@
   const exportBackdrop = shadow.querySelector(".export-backdrop");
   const exportDialog = shadow.querySelector(".export-dialog");
   const exportCloseButton = shadow.querySelector(".export-close");
+  const bookmarksPopover = shadow.querySelector(".bookmarks-popover");
+  const bookmarksList = shadow.querySelector(".bookmarks-list");
+  const bookmarksCount = shadow.querySelector(".bookmarks-count");
+  const bookmarksCloseButton = shadow.querySelector(".bookmarks-close");
+  const bookmarksEmpty = shadow.querySelector(".bookmarks-empty");
   const selectionMenu = shadow.querySelector(".selection-menu");
   const panel = shadow.querySelector(".panel");
   const quoteElement = shadow.querySelector(".quote");
@@ -582,6 +783,7 @@
     annotations = Array.isArray(values[key]) ? values[key] : [];
     settings = { enabled: true, ...(values[SETTINGS_KEY] || {}) };
     syncTheme();
+    renderBookmarkList();
     restoreAll();
   }
 
@@ -704,6 +906,7 @@
   }
 
   function showSelectionMenu(nextDraft) {
+    closeBookmarksPopover(false);
     draft = nextDraft;
     panel.hidden = true;
     hideTooltip();
@@ -711,6 +914,7 @@
   }
 
   function openEditor(nextDraft) {
+    closeBookmarksPopover(false);
     draft = nextDraft;
     selectionMenu.hidden = true;
     quoteElement.textContent = nextDraft.quote;
@@ -738,6 +942,11 @@
         toast.hidden = true;
       }, 2600);
     }
+  }
+
+  function hideToast() {
+    clearTimeout(toastTimer);
+    toast.hidden = true;
   }
 
   function interfaceLocale(referenceText = "") {
@@ -768,6 +977,10 @@
     return translate("download", {}, referenceText);
   }
 
+  function browseHighlightsLabel(referenceText = "") {
+    return translate("browseHighlights", {}, referenceText);
+  }
+
   function applyUiTranslations() {
     const setText = (selector, key) => {
       const element = shadow.querySelector(selector);
@@ -777,6 +990,8 @@
     };
 
     setText(".export-dialog-title", "downloadConversation");
+    setText(".bookmarks-title", "highlights");
+    setText(".bookmarks-empty", "noHighlights");
     setText('[data-format="txt"] span:last-child', "plainText");
     setText('[data-format="pdf"] span:last-child', "pdfDocument");
     setText('[data-format="json"] span:last-child', "jsonData");
@@ -789,6 +1004,8 @@
 
     exportCloseButton.setAttribute("aria-label", translate("close"));
     exportCloseButton.setAttribute("title", translate("close"));
+    bookmarksCloseButton.setAttribute("aria-label", translate("close"));
+    bookmarksCloseButton.setAttribute("title", translate("close"));
     selectionMenu.setAttribute("aria-label", translate("textActions"));
     panel.setAttribute("aria-label", translate("editHighlight"));
     noteElement.placeholder = translate("notePlaceholder");
@@ -799,6 +1016,16 @@
       swatch.setAttribute("aria-label", label);
       swatch.setAttribute("title", label);
     });
+    document.querySelectorAll(NATIVE_BOOKMARK_SELECTOR).forEach((control) => {
+      const label = browseHighlightsLabel();
+      if (control.getAttribute("aria-label") !== label) {
+        control.setAttribute("aria-label", label);
+      }
+      const nativeLabel = control.querySelector(".poe-notes-header-bookmarks-label");
+      if (nativeLabel && nativeLabel.textContent !== label) {
+        nativeLabel.textContent = label;
+      }
+    });
   }
 
   function hideNativeTooltip() {
@@ -806,7 +1033,7 @@
     nativeTooltipTimer = null;
     nativeTooltip?.remove();
     nativeTooltip = null;
-    document.querySelectorAll(`${NATIVE_EXPORT_SELECTOR}[aria-describedby="poe-notes-download-tooltip"]`)
+    document.querySelectorAll('[aria-describedby="poe-notes-native-tooltip"]')
       .forEach((control) => control.removeAttribute("aria-describedby"));
   }
 
@@ -819,10 +1046,10 @@
       }
 
       const tooltip = document.createElement("div");
-      tooltip.id = "poe-notes-download-tooltip";
+      tooltip.id = "poe-notes-native-tooltip";
       tooltip.dataset.poeNotesNativeTooltip = "true";
       tooltip.setAttribute("role", "tooltip");
-      tooltip.textContent = downloadLabel();
+      tooltip.textContent = control.getAttribute("aria-label") || "";
       document.body.append(tooltip);
       nativeTooltip = tooltip;
       control.setAttribute("aria-describedby", tooltip.id);
@@ -846,6 +1073,147 @@
     control.addEventListener("blur", hideNativeTooltip);
   }
 
+  function compareAnnotations(left, right) {
+    const leftMatch = String(left.messageId || "").match(/^message-(\d+)$/);
+    const rightMatch = String(right.messageId || "").match(/^message-(\d+)$/);
+    if (leftMatch && rightMatch) {
+      const leftId = BigInt(leftMatch[1]);
+      const rightId = BigInt(rightMatch[1]);
+      if (leftId !== rightId) {
+        return leftId < rightId ? -1 : 1;
+      }
+    } else if (leftMatch || rightMatch) {
+      return leftMatch ? -1 : 1;
+    } else {
+      const messageComparison = String(left.messageId || "").localeCompare(String(right.messageId || ""));
+      if (messageComparison) {
+        return messageComparison;
+      }
+    }
+
+    const offsetComparison = Number(left.start || 0) - Number(right.start || 0);
+    return offsetComparison || String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+  }
+
+  function renderBookmarkList() {
+    const sorted = [...annotations].sort(compareAnnotations);
+    bookmarksCount.textContent = String(sorted.length);
+    bookmarksEmpty.hidden = sorted.length > 0;
+    bookmarksList.hidden = sorted.length === 0;
+    bookmarksList.replaceChildren();
+
+    for (const annotation of sorted) {
+      const item = document.createElement("button");
+      item.className = "bookmark-item";
+      item.type = "button";
+      item.dataset.annotationId = annotation.id;
+      item.disabled = Boolean(jumpAnnotationId && jumpAnnotationId !== annotation.id);
+      item.setAttribute("aria-busy", String(jumpAnnotationId === annotation.id));
+
+      const color = document.createElement("span");
+      color.className = "bookmark-color";
+      color.dataset.color = COLORS.includes(annotation.color) ? annotation.color : "yellow";
+      color.setAttribute("aria-hidden", "true");
+
+      const copy = document.createElement("span");
+      copy.className = "bookmark-copy";
+      const quote = document.createElement("span");
+      quote.className = "bookmark-quote";
+      quote.textContent = annotation.quote || "";
+      copy.append(quote);
+
+      if (annotation.note) {
+        const note = document.createElement("span");
+        note.className = "bookmark-note";
+        note.textContent = annotation.note;
+        copy.append(note);
+      }
+
+      item.append(color, copy);
+      bookmarksList.append(item);
+    }
+  }
+
+  function positionBookmarksPopover(control) {
+    if (!control || !document.contains(control) || bookmarksPopover.hidden) {
+      return;
+    }
+    const controlRect = control.getBoundingClientRect();
+    const popoverRect = bookmarksPopover.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || innerHeight;
+    const left = viewportWidth <= 480
+      ? 12
+      : Math.min(
+        Math.max(12, controlRect.right - popoverRect.width),
+        viewportWidth - popoverRect.width - 12
+      );
+    const below = controlRect.bottom + 8;
+    const above = controlRect.top - popoverRect.height - 8;
+    const top = below + popoverRect.height <= viewportHeight - 12
+      ? below
+      : Math.max(12, above);
+    bookmarksPopover.style.left = `${Math.round(left)}px`;
+    bookmarksPopover.style.top = `${Math.round(top)}px`;
+  }
+
+  function closeBookmarksPopover(restoreFocus = true) {
+    if (bookmarksPopover.hidden) {
+      return;
+    }
+    bookmarksPopover.hidden = true;
+    document.querySelectorAll(NATIVE_BOOKMARK_SELECTOR).forEach((control) => {
+      control.setAttribute("aria-expanded", "false");
+    });
+    if (restoreFocus && document.contains(bookmarkPopoverReturnFocus)) {
+      bookmarkPopoverReturnFocus.focus({ preventScroll: true });
+    }
+    bookmarkPopoverReturnFocus = null;
+  }
+
+  function openBookmarksPopover(control) {
+    closeEditor();
+    closeExportDialog();
+    hideNativeTooltip();
+    hideTooltip();
+    bookmarkPopoverReturnFocus = control;
+    applyUiTranslations();
+    renderBookmarkList();
+    bookmarksPopover.style.left = "12px";
+    bookmarksPopover.style.top = "12px";
+    bookmarksPopover.hidden = false;
+    document.querySelectorAll(NATIVE_BOOKMARK_SELECTOR).forEach((button) => {
+      button.setAttribute("aria-expanded", String(button === control));
+    });
+    requestAnimationFrame(() => {
+      positionBookmarksPopover(control);
+      (bookmarksList.querySelector(".bookmark-item") || bookmarksCloseButton)
+        .focus({ preventScroll: true });
+    });
+  }
+
+  function prepareNativeBookmarksControl(control) {
+    control.dataset.poeNotesNativeBookmarks = "true";
+    control.removeAttribute("id");
+    control.removeAttribute("aria-controls");
+    control.removeAttribute("data-state");
+    control.removeAttribute("title");
+    control.setAttribute("aria-haspopup", "dialog");
+    control.setAttribute("aria-expanded", "false");
+    control.setAttribute("aria-label", browseHighlightsLabel());
+    control.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      hideNativeTooltip();
+      if (bookmarksPopover.hidden) {
+        openBookmarksPopover(control);
+      } else {
+        closeBookmarksPopover();
+      }
+    });
+    return control;
+  }
+
   function closeExportDialog() {
     if (exportBackdrop.hidden) {
       return;
@@ -866,6 +1234,7 @@
     }
 
     closeEditor();
+    closeBookmarksPopover(false);
     hideTooltip();
     exportDialogReturnFocus = document.activeElement;
     applyUiTranslations();
@@ -947,6 +1316,52 @@
     actionGroup.insertBefore(button, actionGroup.firstElementChild);
   }
 
+  function installHeaderBookmarksControl() {
+    const actionGroup = document.querySelector(HEADER_ACTIONS_SELECTOR);
+    if (!actionGroup) {
+      return;
+    }
+
+    const exportButton = actionGroup.querySelector(NATIVE_EXPORT_SELECTOR);
+    const existingButton = actionGroup.querySelector(NATIVE_BOOKMARK_SELECTOR);
+    if (existingButton) {
+      existingButton.dataset.poeNotesHeaderBookmarks = "true";
+      const labelText = browseHighlightsLabel();
+      if (existingButton.getAttribute("aria-label") !== labelText) {
+        existingButton.setAttribute("aria-label", labelText);
+      }
+      existingButton.querySelectorAll("span").forEach((label) => {
+        label.classList.add("poe-notes-header-bookmarks-label");
+        if (label.textContent !== labelText) {
+          label.textContent = labelText;
+        }
+      });
+      if (exportButton && existingButton.nextElementSibling !== exportButton) {
+        actionGroup.insertBefore(existingButton, exportButton);
+      }
+      return;
+    }
+
+    const template = [...actionGroup.children].find((child) => (
+      child instanceof HTMLButtonElement && !child.matches(NATIVE_EXPORT_SELECTOR)
+    )) || actionGroup.querySelector("button");
+    if (!template) {
+      return;
+    }
+
+    const button = prepareNativeBookmarksControl(template.cloneNode(false));
+    button.dataset.poeNotesHeaderBookmarks = "true";
+    button.type = "button";
+    button.innerHTML = BOOKMARK_ICON;
+    const nativeLabel = document.createElement("span");
+    nativeLabel.className = template.querySelector('[class*="Button_label__"]')?.className || "";
+    nativeLabel.classList.add("poe-notes-header-bookmarks-label");
+    nativeLabel.textContent = browseHighlightsLabel();
+    button.append(nativeLabel);
+    attachNativeTooltip(button);
+    actionGroup.insertBefore(button, exportButton || actionGroup.firstElementChild);
+  }
+
   function normalizedLabel(element) {
     return (element.textContent || "").replace(/\s+/g, " ").trim();
   }
@@ -1013,6 +1428,7 @@
     nativeInjectionTimer = setTimeout(() => {
       nativeInjectionTimer = null;
       installHeaderExportControl();
+      installHeaderBookmarksControl();
       installMenuExportControl();
     }, 40);
   }
@@ -1054,19 +1470,19 @@
   }
 
   function locateTextRoot(annotation) {
-    const message = annotation.messageId ? document.getElementById(annotation.messageId) : null;
-    if (message) {
-      return getTextRoot(message);
+    if (annotation.messageId) {
+      const message = document.getElementById(annotation.messageId);
+      return message ? getTextRoot(message) : null;
     }
 
+    const matches = [];
     const candidates = document.querySelectorAll(`${MESSAGE_SELECTOR} ${TEXT_SELECTOR}`);
     for (const candidate of candidates) {
-      const text = candidate.textContent || "";
-      if (text.includes(annotation.quote)) {
-        return candidate;
+      if (Anchor.resolveOffsets(candidate.textContent || "", annotation)) {
+        matches.push(candidate);
       }
     }
-    return null;
+    return matches.length === 1 ? matches[0] : null;
   }
 
   function wrapOffsets(root, annotation, resolved) {
@@ -1111,24 +1527,26 @@
   }
 
   function applyAnnotation(annotation) {
-    if (!settings.enabled || document.querySelector(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`)) {
-      return;
+    const existing = document.querySelector(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`);
+    if (!settings.enabled || existing) {
+      return existing;
     }
 
     const root = locateTextRoot(annotation);
     if (!root) {
-      return;
+      return null;
     }
 
     const resolved = Anchor.resolveOffsets(root.textContent || "", annotation);
     if (!resolved) {
-      return;
+      return null;
     }
 
     annotation.start = resolved.start;
     annotation.end = resolved.end;
     annotation.messageId = messageIdFor(root) || annotation.messageId;
     wrapOffsets(root, annotation, resolved);
+    return document.querySelector(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`);
   }
 
   function restoreAll() {
@@ -1384,6 +1802,111 @@
     ));
   }
 
+  function focusAnnotation(annotation) {
+    const mark = applyAnnotation(annotation);
+    if (!mark) {
+      return false;
+    }
+
+    closeBookmarksPopover(false);
+    hideToast();
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    mark.scrollIntoView({
+      block: "center",
+      inline: "nearest",
+      behavior: reducedMotion ? "auto" : "smooth"
+    });
+    mark.focus({ preventScroll: true });
+
+    clearTimeout(jumpHighlightTimer);
+    const marks = document.querySelectorAll(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`);
+    marks.forEach((segment) => segment.setAttribute("data-poe-notes-jump-target", "true"));
+    jumpHighlightTimer = setTimeout(() => {
+      marks.forEach((segment) => segment.removeAttribute("data-poe-notes-jump-target"));
+    }, reducedMotion ? 700 : 1500);
+    return true;
+  }
+
+  async function revealAnnotation(annotation) {
+    if (!settings.enabled) {
+      showToast(translate("enableHighlightsToBrowse"));
+      return false;
+    }
+    if (exportPromise) {
+      showToast(translate("exportInProgress"));
+      return false;
+    }
+    if (focusAnnotation(annotation)) {
+      return true;
+    }
+
+    const scrollContainer = findScrollContainer();
+    if (!scrollContainer) {
+      showToast(translate("highlightNotFound"));
+      return false;
+    }
+
+    const jumpPageKey = pageKey;
+    let stableRounds = 0;
+    let rounds = 0;
+    showToast(translate("loadingHighlight"), true);
+
+    while (stableRounds < EXPORT_STABLE_ROUNDS && rounds < JUMP_MAX_ROUNDS) {
+      if (!document.contains(scrollContainer) || pageKey !== jumpPageKey) {
+        throw new Error(translate("conversationChanged"));
+      }
+
+      const signature = historySignature();
+      const progressPromise = waitForHistoryProgress(signature, scrollContainer);
+      scrollToHistoryStart(scrollContainer);
+      const changed = await progressPromise;
+      if (hasHistoryLoadError(scrollContainer)) {
+        throw new Error(translate("highlightLoadFailed"));
+      }
+
+      const currentAnnotation = annotations.find((item) => item.id === annotation.id);
+      if (!currentAnnotation) {
+        hideToast();
+        return false;
+      }
+      if (focusAnnotation(currentAnnotation)) {
+        return true;
+      }
+
+      stableRounds = changed || isHistoryLoading(scrollContainer) ? 0 : stableRounds + 1;
+      rounds += 1;
+    }
+
+    showToast(translate(rounds >= JUMP_MAX_ROUNDS ? "highlightLoadFailed" : "highlightNotFound"));
+    return false;
+  }
+
+  function requestAnnotationJump(annotationId) {
+    if (jumpPromise) {
+      return jumpPromise;
+    }
+    const annotation = annotations.find((item) => item.id === annotationId);
+    if (!annotation) {
+      return Promise.resolve(false);
+    }
+
+    jumpAnnotationId = annotation.id;
+    renderBookmarkList();
+    jumpPromise = Promise.resolve()
+      .then(() => revealAnnotation(annotation))
+      .catch((error) => {
+        const reason = error instanceof Error ? error.message : translate("highlightLoadFailed");
+        showToast(reason);
+        return false;
+      })
+      .finally(() => {
+        jumpPromise = null;
+        jumpAnnotationId = null;
+        renderBookmarkList();
+      });
+    return jumpPromise;
+  }
+
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1550,6 +2073,7 @@
       }
       closeEditor();
       closeExportDialog();
+      closeBookmarksPopover(false);
       hideNativeTooltip();
       hideTooltip();
       unwrapMarks();
@@ -1593,6 +2117,12 @@
   }, true);
 
   document.addEventListener("click", (event) => {
+    const bookmarkControl = event.target instanceof Element
+      ? event.target.closest(NATIVE_BOOKMARK_SELECTOR)
+      : null;
+    if (!bookmarksPopover.hidden && !bookmarkControl && !event.composedPath().includes(host)) {
+      closeBookmarksPopover(false);
+    }
     const mark = event.target instanceof Element ? event.target.closest("[data-poe-notes-id]") : null;
     if (mark) {
       event.preventDefault();
@@ -1634,6 +2164,11 @@
       closeExportDialog();
       return;
     }
+    if (event.key === "Escape" && !bookmarksPopover.hidden) {
+      event.preventDefault();
+      closeBookmarksPopover();
+      return;
+    }
     if (event.key === "Escape" && (!panel.hidden || !selectionMenu.hidden)) {
       event.preventDefault();
       closeEditor();
@@ -1641,6 +2176,15 @@
   }, true);
 
   shadow.addEventListener("click", (event) => {
+    const bookmarkItem = event.target.closest(".bookmark-item");
+    if (bookmarkItem) {
+      requestAnnotationJump(bookmarkItem.dataset.annotationId);
+      return;
+    }
+    if (event.target.closest(".bookmarks-close")) {
+      closeBookmarksPopover();
+      return;
+    }
     const formatOption = event.target.closest(".format-option");
     if (formatOption) {
       const format = formatOption.dataset.format;
@@ -1678,6 +2222,11 @@
   });
 
   shadow.addEventListener("keydown", (event) => {
+    if (!bookmarksPopover.hidden && event.key === "Escape") {
+      event.preventDefault();
+      closeBookmarksPopover();
+      return;
+    }
     if (!exportBackdrop.hidden && event.key === "Escape") {
       event.preventDefault();
       closeExportDialog();
@@ -1718,6 +2267,7 @@
     const key = storageKey();
     if (changes[key]) {
       annotations = Array.isArray(changes[key].newValue) ? changes[key].newValue : [];
+      renderBookmarkList();
       unwrapMarks();
       restoreAll();
     }
@@ -1780,6 +2330,11 @@
     restoreAll();
   });
   observer.observe(document.body, { childList: true, subtree: true });
+  addEventListener("resize", () => {
+    if (!bookmarksPopover.hidden) {
+      positionBookmarksPopover(bookmarkPopoverReturnFocus);
+    }
+  });
   installRouteWatcher();
   scheduleNativeExportControls();
   loadState();
