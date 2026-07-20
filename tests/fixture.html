@@ -232,7 +232,7 @@
           return;
         }
 
-        if (!searchParams.has('bookmarksVisual')) {
+        if (!searchParams.has('bookmarksVisual') && !searchParams.has('skipQuote')) {
           const composer = document.querySelector('.GrowingTextArea_textArea__fixture');
           composer.setSelectionRange(8, 8);
           composer.dataset.inputEvents = '0';
@@ -284,8 +284,46 @@
         assert(bookmarkItems.length === 1, 'saved highlight is missing from bookmark popover');
         assert(bookmarkItems[0].querySelector('.bookmark-quote').textContent === 'quick brown fox', 'bookmark quote preview is wrong');
         assert(bookmarkItems[0].querySelector('.bookmark-note').textContent === 'Useful evidence', 'bookmark note preview is wrong');
+        assert(
+          bookmarkItems[0].querySelector('.bookmark-note').nextElementSibling?.classList.contains('bookmark-quote'),
+          'bookmark note is not displayed before the quote preview'
+        );
+        assert(
+          getComputedStyle(bookmarkItems[0].querySelector('.bookmark-note')).webkitLineClamp === '1',
+          'bookmark note is not limited to one title line'
+        );
+        assert(
+          getComputedStyle(bookmarkItems[0].querySelector('.bookmark-quote')).webkitLineClamp === '2',
+          'bookmark content with a note is not limited to two lines'
+        );
 
         if (searchParams.has('bookmarksVisual')) {
+          const visualPageKey = Object.keys(window.__fixtureStore).find((key) => key.startsWith('poe-notes:page:'));
+          const noteLessAnnotation = {
+            id: 'visual-highlight-without-note',
+            messageId: 'message-visual-only',
+            start: 0,
+            end: 118,
+            quote: 'A highlight without a note uses the full three-line preview so enough surrounding context remains visible in the bookmark list.',
+            prefix: '',
+            suffix: '',
+            color: 'pink',
+            note: '',
+            createdAt: '2026-07-20T00:01:00.000Z',
+            updatedAt: '2026-07-20T00:01:00.000Z'
+          };
+          await new Promise((resolve) => chrome.storage.local.set({
+            [visualPageKey]: [...window.__fixtureStore[visualPageKey], noteLessAnnotation]
+          }, resolve));
+          await wait(120);
+          bookmarkItems = shadow.querySelectorAll('.bookmark-item');
+          const noteLessItem = [...bookmarkItems].find((item) => !item.querySelector('.bookmark-note'));
+          assert(bookmarkItems.length === 2, 'note-less bookmark is missing from visual fixture');
+          assert(noteLessItem, 'note-less bookmark unexpectedly renders a title');
+          assert(
+            getComputedStyle(noteLessItem.querySelector('.bookmark-quote')).webkitLineClamp === '3',
+            'bookmark content without a note is not limited to three lines'
+          );
           document.body.dataset.testResult = 'visual-ready';
           return;
         }

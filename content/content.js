@@ -450,19 +450,24 @@
       -webkit-box-orient: vertical;
     }
 
-    .bookmark-quote {
-      -webkit-line-clamp: 2;
+    .bookmark-note {
+      color: var(--text);
+      -webkit-line-clamp: 1;
       font-size: 13px;
-      font-weight: 550;
+      font-weight: 600;
       line-height: 1.38;
     }
 
-    .bookmark-note {
-      margin-top: 4px;
+    .bookmark-quote {
       color: var(--muted);
-      -webkit-line-clamp: 1;
+      -webkit-line-clamp: 3;
       font-size: 12px;
       line-height: 1.35;
+    }
+
+    .bookmark-note + .bookmark-quote {
+      margin-top: 4px;
+      -webkit-line-clamp: 2;
     }
 
     .bookmarks-empty {
@@ -1117,10 +1122,6 @@
 
       const copy = document.createElement("span");
       copy.className = "bookmark-copy";
-      const quote = document.createElement("span");
-      quote.className = "bookmark-quote";
-      quote.textContent = annotation.quote || "";
-      copy.append(quote);
 
       if (annotation.note) {
         const note = document.createElement("span");
@@ -1128,6 +1129,11 @@
         note.textContent = annotation.note;
         copy.append(note);
       }
+
+      const quote = document.createElement("span");
+      quote.className = "bookmark-quote";
+      quote.textContent = annotation.quote || "";
+      copy.append(quote);
 
       item.append(color, copy);
       bookmarksList.append(item);
@@ -1802,20 +1808,81 @@
     ));
   }
 
-  function focusAnnotation(annotation) {
-    const mark = applyAnnotation(annotation);
+  function waitForNextPaint() {
+    return Promise.race([
+      new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      new Promise((resolve) => setTimeout(resolve, 120))
+    ]);
+  }
+
+  async function waitForHistoryToSettle(scrollContainer) {
+    let previousState = `${historySignature()}:${scrollContainer.scrollHeight}`;
+    let stableRounds = 0;
+    const deadline = performance.now() + EXPORT_PROGRESS_TIMEOUT;
+
+    while (stableRounds < 2 && performance.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const currentState = `${historySignature()}:${scrollContainer.scrollHeight}`;
+      stableRounds = !isHistoryLoading(scrollContainer) && currentState === previousState
+        ? stableRounds + 1
+        : 0;
+      previousState = currentState;
+    }
+  }
+
+  function waitForScrollEnd(scrollContainer, timeout) {
+    return new Promise((resolve) => {
+      const scrollTarget = scrollContainer || window;
+      let settled = false;
+      let timeoutTimer;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        scrollTarget.removeEventListener("scrollend", finish);
+        clearTimeout(timeoutTimer);
+        resolve();
+      };
+
+      scrollTarget.addEventListener("scrollend", finish, { once: true });
+      timeoutTimer = setTimeout(finish, timeout);
+    });
+  }
+
+  async function focusAnnotation(annotation, scrollContainer = null) {
+    let mark = applyAnnotation(annotation);
     if (!mark) {
       return false;
+    }
+
+    if (scrollContainer) {
+      await waitForHistoryToSettle(scrollContainer);
+      mark = document.querySelector(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`) ||
+        applyAnnotation(annotation);
+      if (!mark) {
+        return false;
+      }
     }
 
     closeBookmarksPopover(false);
     hideToast();
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    await waitForNextPaint();
+    const scrollFinished = waitForScrollEnd(scrollContainer || findScrollContainer(), reducedMotion ? 120 : 1200);
     mark.scrollIntoView({
       block: "center",
       inline: "nearest",
       behavior: reducedMotion ? "auto" : "smooth"
     });
+    await scrollFinished;
+
+    mark = document.querySelector(`[data-poe-notes-id="${CSS.escape(annotation.id)}"]`);
+    if (!mark) {
+      return false;
+    }
+    mark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    await waitForNextPaint();
     mark.focus({ preventScroll: true });
 
     clearTimeout(jumpHighlightTimer);
@@ -1836,7 +1903,7 @@
       showToast(translate("exportInProgress"));
       return false;
     }
-    if (focusAnnotation(annotation)) {
+    if (await focusAnnotation(annotation)) {
       return true;
     }
 
@@ -1869,7 +1936,7 @@
         hideToast();
         return false;
       }
-      if (focusAnnotation(currentAnnotation)) {
+      if (await focusAnnotation(currentAnnotation, scrollContainer)) {
         return true;
       }
 
