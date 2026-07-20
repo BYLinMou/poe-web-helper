@@ -27,7 +27,7 @@
   `;
   const BOOKMARK_ICON = `
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
-      <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path data-poe-notes-bookmark-icon d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   `;
   const COLORS = ["yellow", "green", "blue", "pink", "purple"];
@@ -1100,8 +1100,18 @@
     return offsetComparison || String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
   }
 
+  function syncNativeBookmarkState() {
+    const hasBookmarks = annotations.length > 0;
+    document.querySelectorAll(NATIVE_BOOKMARK_SELECTOR).forEach((control) => {
+      control.dataset.poeNotesHasBookmarks = String(hasBookmarks);
+      control.querySelector("[data-poe-notes-bookmark-icon]")
+        ?.setAttribute("fill", hasBookmarks ? "currentColor" : "none");
+    });
+  }
+
   function renderBookmarkList() {
     const sorted = [...annotations].sort(compareAnnotations);
+    syncNativeBookmarkState();
     bookmarksCount.textContent = String(sorted.length);
     bookmarksEmpty.hidden = sorted.length > 0;
     bookmarksList.hidden = sorted.length === 0;
@@ -1345,6 +1355,7 @@
       if (exportButton && existingButton.nextElementSibling !== exportButton) {
         actionGroup.insertBefore(existingButton, exportButton);
       }
+      syncNativeBookmarkState();
       return;
     }
 
@@ -1366,6 +1377,7 @@
     button.append(nativeLabel);
     attachNativeTooltip(button);
     actionGroup.insertBefore(button, exportButton || actionGroup.firstElementChild);
+    syncNativeBookmarkState();
   }
 
   function normalizedLabel(element) {
