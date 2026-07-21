@@ -20,6 +20,7 @@
   const HEADER_ACTIONS_SELECTOR = 'header[class*="BaseNavbar_chatTitleNavbar__"] [class*="ChatPageNavbar_rightNavItemWrapper__"]';
   const NATIVE_EXPORT_SELECTOR = "[data-poe-notes-native-export]";
   const NATIVE_BOOKMARK_SELECTOR = "[data-poe-notes-native-bookmarks]";
+  const NATIVE_LOAD_HISTORY_SELECTOR = "[data-poe-notes-native-load-history]";
   const DOWNLOAD_ICON = `
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
       <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -30,11 +31,18 @@
       <path data-poe-notes-bookmark-icon d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   `;
+  const REFRESH_ICON = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="height:18px;width:18px;display:block;flex:none">
+      <path d="M4.5 8.2A8 8 0 0 1 17.5 5.8M19.5 15.8A8 8 0 0 1 6.5 18.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="m15.2 4.4 3 1.4-2.8 1.8M8.8 19.6l-3-1.4 2.8-1.8" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="m12 7.5 1.1 3.4 3.4 1.1-3.4 1.1-1.1 3.4-1.1-3.4-3.4-1.1 3.4-1.1L12 7.5Z" fill="currentColor" stroke="none"/>
+    </svg>
+  `;
   const COLORS = ["yellow", "green", "blue", "pink", "purple"];
   const CONTEXT_LENGTH = 40;
   const MAX_QUOTE_LENGTH = 12000;
   const EXPORT_PROGRESS_TIMEOUT = 2200;
-  const EXPORT_STABLE_ROUNDS = 3;
+  const EXPORT_STABLE_ROUNDS = 2;
   const EXPORT_MAX_ROUNDS = 500;
   const JUMP_MAX_ROUNDS = 120;
   const MIN_EXPORTING_TOAST_MS = 500;
@@ -52,6 +60,7 @@
     en: {
       download: "Download",
       downloadConversation: "Download conversation",
+      loadAllMessages: "Load all messages",
       browseHighlights: "Browse highlights",
       highlights: "Highlights",
       noHighlights: "No highlights in this conversation.",
@@ -86,8 +95,12 @@
       highlightedText: "Highlighted text",
       composerMissing: "Open a Poe conversation with a message box.",
       quoteAdded: "Quote added to the Poe message box.",
+      loadingAllMessages: "Loading all messages... {count} messages loaded",
+      allMessagesLoaded: "All {count} messages are ready to search.",
+      loadAllMessagesFailed: "Poe could not load all messages. Please retry.",
+      historyLoadInProgress: "Conversation history is already loading.",
       loadingHistory: "Loading full history... {count} messages found",
-      conversationChanged: "The Poe conversation changed during export.",
+      conversationChanged: "The Poe conversation changed while loading history.",
       historyLoadFailed: "Poe could not load earlier messages. Please retry the export.",
       historyTooLong: "Poe kept loading history for too long. Please try again.",
       exporting: "Full history loaded. Exporting {count} messages as {format}...",
@@ -98,6 +111,7 @@
     zhHans: {
       download: "下载",
       downloadConversation: "下载对话",
+      loadAllMessages: "加载全部消息",
       browseHighlights: "浏览高亮",
       highlights: "高亮",
       noHighlights: "此对话还没有高亮。",
@@ -132,8 +146,12 @@
       highlightedText: "已高亮文本",
       composerMissing: "请打开带有输入框的 Poe 对话。",
       quoteAdded: "引用已添加到 Poe 输入框。",
+      loadingAllMessages: "正在加载全部消息... 已加载 {count} 条消息",
+      allMessagesLoaded: "全部 {count} 条消息已可搜索。",
+      loadAllMessagesFailed: "Poe 无法加载全部消息，请重试。",
+      historyLoadInProgress: "正在加载对话历史记录。",
       loadingHistory: "正在加载完整记录... 已找到 {count} 条消息",
-      conversationChanged: "导出期间 Poe 对话发生了变化。",
+      conversationChanged: "加载历史记录期间 Poe 对话发生了变化。",
       historyLoadFailed: "Poe 无法加载更早的消息，请重试导出。",
       historyTooLong: "Poe 加载历史记录时间过长，请重试。",
       exporting: "完整记录已加载，正在将 {count} 条消息导出为 {format}...",
@@ -144,6 +162,7 @@
     zhHant: {
       download: "下載",
       downloadConversation: "下載對話",
+      loadAllMessages: "載入全部訊息",
       browseHighlights: "瀏覽標記",
       highlights: "標記",
       noHighlights: "此對話尚無標記。",
@@ -178,8 +197,12 @@
       highlightedText: "已標記文字",
       composerMissing: "請開啟含有輸入框的 Poe 對話。",
       quoteAdded: "引用已加入 Poe 輸入框。",
+      loadingAllMessages: "正在載入全部訊息... 已載入 {count} 則訊息",
+      allMessagesLoaded: "全部 {count} 則訊息已可搜尋。",
+      loadAllMessagesFailed: "Poe 無法載入全部訊息，請重試。",
+      historyLoadInProgress: "正在載入對話歷史記錄。",
       loadingHistory: "正在載入完整記錄... 已找到 {count} 則訊息",
-      conversationChanged: "匯出期間 Poe 對話已變更。",
+      conversationChanged: "載入歷史記錄期間 Poe 對話已變更。",
       historyLoadFailed: "Poe 無法載入更早的訊息，請重試匯出。",
       historyTooLong: "Poe 載入歷史記錄時間過長，請重試。",
       exporting: "完整記錄已載入，正在將 {count} 則訊息匯出為 {format}...",
@@ -693,6 +716,7 @@
   let nativeInjectionTimer = null;
   let nativeTooltipTimer = null;
   let nativeTooltip = null;
+  let historyLoadPromise = null;
   let exportPromise = null;
   let exportDialogReturnFocus = null;
   let bookmarkPopoverReturnFocus = null;
@@ -986,6 +1010,10 @@
     return translate("browseHighlights", {}, referenceText);
   }
 
+  function loadAllMessagesLabel(referenceText = "") {
+    return translate("loadAllMessages", {}, referenceText);
+  }
+
   function applyUiTranslations() {
     const setText = (selector, key) => {
       const element = shadow.querySelector(selector);
@@ -1027,6 +1055,16 @@
         control.setAttribute("aria-label", label);
       }
       const nativeLabel = control.querySelector(".poe-notes-header-bookmarks-label");
+      if (nativeLabel && nativeLabel.textContent !== label) {
+        nativeLabel.textContent = label;
+      }
+    });
+    document.querySelectorAll(NATIVE_LOAD_HISTORY_SELECTOR).forEach((control) => {
+      const label = loadAllMessagesLabel();
+      if (control.getAttribute("aria-label") !== label) {
+        control.setAttribute("aria-label", label);
+      }
+      const nativeLabel = control.querySelector(".poe-notes-header-load-history-label");
       if (nativeLabel && nativeLabel.textContent !== label) {
         nativeLabel.textContent = label;
       }
@@ -1230,6 +1268,30 @@
     return control;
   }
 
+  function prepareNativeLoadHistoryControl(control) {
+    control.dataset.poeNotesNativeLoadHistory = "true";
+    control.removeAttribute("id");
+    control.removeAttribute("aria-controls");
+    control.removeAttribute("aria-expanded");
+    control.removeAttribute("data-state");
+    control.removeAttribute("title");
+    control.setAttribute("aria-label", loadAllMessagesLabel());
+    if (historyLoadPromise || exportPromise) {
+      control.setAttribute("aria-busy", "true");
+      control.setAttribute("aria-disabled", "true");
+      if (control instanceof HTMLButtonElement) {
+        control.disabled = true;
+      }
+    }
+    control.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      hideNativeTooltip();
+      requestLoadAllMessages();
+    });
+    return control;
+  }
+
   function closeExportDialog() {
     if (exportBackdrop.hidden) {
       return;
@@ -1240,8 +1302,8 @@
   }
 
   function openExportDialog() {
-    if (exportPromise) {
-      showToast(translate("exportInProgress"));
+    if (exportPromise || historyLoadPromise) {
+      showToast(translate(exportPromise ? "exportInProgress" : "historyLoadInProgress"));
       return;
     }
     if (!document.querySelector(`${MESSAGE_SELECTOR} ${TEXT_SELECTOR}`)) {
@@ -1266,7 +1328,7 @@
     control.removeAttribute("data-state");
     control.removeAttribute("title");
     control.setAttribute("aria-label", downloadLabel());
-    if (exportPromise) {
+    if (exportPromise || historyLoadPromise) {
       control.setAttribute("aria-disabled", "true");
       if (control instanceof HTMLButtonElement) {
         control.disabled = true;
@@ -1289,6 +1351,19 @@
       hideNativeTooltip();
     }
     document.querySelectorAll(NATIVE_EXPORT_SELECTOR).forEach((control) => {
+      control.toggleAttribute("aria-busy", busy);
+      control.setAttribute("aria-disabled", String(busy));
+      if (control instanceof HTMLButtonElement) {
+        control.disabled = busy;
+      }
+    });
+  }
+
+  function setNativeLoadHistoryBusy(busy) {
+    if (busy) {
+      hideNativeTooltip();
+    }
+    document.querySelectorAll(NATIVE_LOAD_HISTORY_SELECTOR).forEach((control) => {
       control.toggleAttribute("aria-busy", busy);
       control.setAttribute("aria-disabled", String(busy));
       if (control instanceof HTMLButtonElement) {
@@ -1380,6 +1455,56 @@
     syncNativeBookmarkState();
   }
 
+  function installHeaderLoadHistoryControl() {
+    const actionGroup = document.querySelector(HEADER_ACTIONS_SELECTOR);
+    if (!actionGroup) {
+      return;
+    }
+
+    const bookmarkButton = actionGroup.querySelector(NATIVE_BOOKMARK_SELECTOR);
+    const exportButton = actionGroup.querySelector(NATIVE_EXPORT_SELECTOR);
+    const nextButton = bookmarkButton || exportButton;
+    const existingButton = actionGroup.querySelector(NATIVE_LOAD_HISTORY_SELECTOR);
+    if (existingButton) {
+      existingButton.dataset.poeNotesHeaderLoadHistory = "true";
+      const labelText = loadAllMessagesLabel();
+      if (existingButton.getAttribute("aria-label") !== labelText) {
+        existingButton.setAttribute("aria-label", labelText);
+      }
+      existingButton.querySelectorAll("span").forEach((label) => {
+        label.classList.add("poe-notes-header-load-history-label");
+        if (label.textContent !== labelText) {
+          label.textContent = labelText;
+        }
+      });
+      if (nextButton && existingButton.nextElementSibling !== nextButton) {
+        actionGroup.insertBefore(existingButton, nextButton);
+      }
+      return;
+    }
+
+    const template = [...actionGroup.children].find((child) => (
+      child instanceof HTMLButtonElement &&
+      !child.matches(NATIVE_EXPORT_SELECTOR) &&
+      !child.matches(NATIVE_BOOKMARK_SELECTOR)
+    )) || actionGroup.querySelector("button");
+    if (!template) {
+      return;
+    }
+
+    const button = prepareNativeLoadHistoryControl(template.cloneNode(false));
+    button.dataset.poeNotesHeaderLoadHistory = "true";
+    button.type = "button";
+    button.innerHTML = REFRESH_ICON;
+    const nativeLabel = document.createElement("span");
+    nativeLabel.className = template.querySelector('[class*="Button_label__"]')?.className || "";
+    nativeLabel.classList.add("poe-notes-header-load-history-label");
+    nativeLabel.textContent = loadAllMessagesLabel();
+    button.append(nativeLabel);
+    attachNativeTooltip(button);
+    actionGroup.insertBefore(button, nextButton || actionGroup.firstElementChild);
+  }
+
   function normalizedLabel(element) {
     return (element.textContent || "").replace(/\s+/g, " ").trim();
   }
@@ -1447,6 +1572,7 @@
       nativeInjectionTimer = null;
       installHeaderExportControl();
       installHeaderBookmarksControl();
+      installHeaderLoadHistoryControl();
       installMenuExportControl();
     }, 40);
   }
@@ -1750,6 +1876,11 @@
     return `${messages[0]?.id || "none"}:${messages.length}`;
   }
 
+  function loadedMessageCount() {
+    return [...document.querySelectorAll(MESSAGE_SELECTOR)]
+      .filter((root) => getTextRoot(root)).length;
+  }
+
   function waitForHistoryProgress(previousSignature, scrollContainer) {
     return new Promise((resolve) => {
       let observer;
@@ -1842,6 +1973,61 @@
     }
   }
 
+  async function loadFullHistory({ onProgress = () => {}, loadFailedKey = "historyLoadFailed" } = {}) {
+    const scrollContainer = findScrollContainer();
+    if (!scrollContainer) {
+      throw new Error(translate("openConversation"));
+    }
+
+    const originalPosition = captureScrollPosition(scrollContainer);
+    const loadPageKey = Anchor.canonicalPageKey(location.href);
+    let stableRounds = 0;
+    let rounds = 0;
+    const reportProgress = () => onProgress(loadedMessageCount());
+
+    reportProgress();
+    try {
+      while (stableRounds < EXPORT_STABLE_ROUNDS && rounds < EXPORT_MAX_ROUNDS) {
+        if (
+          !document.contains(scrollContainer) ||
+          Anchor.canonicalPageKey(location.href) !== loadPageKey
+        ) {
+          throw new Error(translate("conversationChanged"));
+        }
+
+        const signature = historySignature();
+        const progressPromise = waitForHistoryProgress(signature, scrollContainer);
+        scrollToHistoryStart(scrollContainer);
+        await waitForNextPaint();
+        if (document.contains(scrollContainer)) {
+          restoreScrollPosition(scrollContainer, originalPosition);
+        }
+
+        const changed = await progressPromise;
+        if (document.contains(scrollContainer)) {
+          restoreScrollPosition(scrollContainer, originalPosition);
+        }
+        if (hasHistoryLoadError(scrollContainer)) {
+          throw new Error(translate(loadFailedKey));
+        }
+
+        stableRounds = changed || isHistoryLoading(scrollContainer) ? 0 : stableRounds + 1;
+        rounds += 1;
+        reportProgress();
+      }
+
+      if (rounds >= EXPORT_MAX_ROUNDS) {
+        throw new Error(translate("historyTooLong"));
+      }
+
+      return { count: loadedMessageCount(), rounds };
+    } finally {
+      if (document.contains(scrollContainer)) {
+        restoreScrollPosition(scrollContainer, originalPosition);
+      }
+    }
+  }
+
   function waitForScrollEnd(scrollContainer, timeout) {
     return new Promise((resolve) => {
       const scrollTarget = scrollContainer || window;
@@ -1911,8 +2097,8 @@
       showToast(translate("enableHighlightsToBrowse"));
       return false;
     }
-    if (exportPromise) {
-      showToast(translate("exportInProgress"));
+    if (exportPromise || historyLoadPromise) {
+      showToast(translate(exportPromise ? "exportInProgress" : "historyLoadInProgress"));
       return false;
     }
     if (await focusAnnotation(annotation)) {
@@ -1998,49 +2184,63 @@
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
-  async function exportFullConversation(format = "md") {
-    format = ["md", "txt", "pdf", "json"].includes(format) ? format : "md";
-    const scrollContainer = findScrollContainer();
-    if (!scrollContainer) {
-      throw new Error(translate("openConversation"));
+  function requestHistoryLoad(options = {}) {
+    if (!historyLoadPromise) {
+      historyLoadPromise = loadFullHistory(options).finally(() => {
+        historyLoadPromise = null;
+        setNativeLoadHistoryBusy(false);
+        setNativeExportBusy(Boolean(exportPromise));
+      });
+      setNativeLoadHistoryBusy(true);
+      setNativeExportBusy(true);
+    }
+    return historyLoadPromise;
+  }
+
+  function requestLoadAllMessages() {
+    if (historyLoadPromise || exportPromise) {
+      showToast(translate(exportPromise ? "exportInProgress" : "historyLoadInProgress"));
+      return Promise.resolve({ ok: false });
+    }
+    if (!findScrollContainer()) {
+      showToast(translate("openConversation"));
+      return Promise.resolve({ ok: false });
     }
 
+    closeEditor();
+    closeExportDialog();
+    closeBookmarksPopover(false);
+    hideTooltip();
+    const loadPromise = requestHistoryLoad({
+      loadFailedKey: "loadAllMessagesFailed",
+      onProgress: (count) => showToast(translate("loadingAllMessages", { count }), true)
+    });
+    return loadPromise
+      .then(({ count }) => {
+        showToast(translate("allMessagesLoaded", { count }));
+        return { ok: true, count };
+      })
+      .catch((error) => {
+        const reason = error instanceof Error ? error.message : translate("loadAllMessagesFailed");
+        showToast(reason);
+        return { ok: false, error: reason };
+      });
+  }
+
+  async function exportFullConversation(format = "md") {
+    format = ["md", "txt", "pdf", "json"].includes(format) ? format : "md";
     const records = new Map();
-    const originalPosition = captureScrollPosition(scrollContainer);
-    const exportPageKey = Anchor.canonicalPageKey(location.href);
-    let stableRounds = 0;
-    let rounds = 0;
 
     closeEditor();
-    collectExportMessages(records);
-    showToast(translate("loadingHistory", { count: records.size }), true);
-
-    try {
-      while (stableRounds < EXPORT_STABLE_ROUNDS && rounds < EXPORT_MAX_ROUNDS) {
-        if (
-          !document.contains(scrollContainer) ||
-          Anchor.canonicalPageKey(location.href) !== exportPageKey
-        ) {
-          throw new Error(translate("conversationChanged"));
-        }
-        const signature = historySignature();
-        const progressPromise = waitForHistoryProgress(signature, scrollContainer);
-        scrollToHistoryStart(scrollContainer);
-        const changed = await progressPromise;
+    await requestHistoryLoad({
+      loadFailedKey: "historyLoadFailed",
+      onProgress: (count) => {
         collectExportMessages(records);
-        if (hasHistoryLoadError(scrollContainer)) {
-          throw new Error(translate("historyLoadFailed"));
-        }
-        stableRounds = changed || isHistoryLoading(scrollContainer) ? 0 : stableRounds + 1;
-        rounds += 1;
-        showToast(translate("loadingHistory", { count: records.size }), true);
+        showToast(translate("loadingHistory", { count: records.size || count }), true);
       }
+    });
 
-      if (rounds >= EXPORT_MAX_ROUNDS) {
-        throw new Error(translate("historyTooLong"));
-      }
-
-      collectExportMessages(records);
+    collectExportMessages(records);
       const title = Export.conversationTitle(document.title);
       const exportedAt = new Date().toISOString();
       const messages = Export.sortMessages([...records.values()]);
@@ -2081,20 +2281,20 @@
       downloadBlob(blob, filename);
       showToast(translate("exported", { count: records.size, format: exportFormat }));
       return { ok: true, count: records.size, filename, format };
-    } finally {
-      if (document.contains(scrollContainer)) {
-        restoreScrollPosition(scrollContainer, originalPosition);
-      }
-    }
   }
 
   function requestConversationExport(format = "md") {
+    if (historyLoadPromise && !exportPromise) {
+      return Promise.reject(new Error(translate("historyLoadInProgress")));
+    }
     if (!exportPromise) {
       exportPromise = exportFullConversation(format).finally(() => {
         exportPromise = null;
         setNativeExportBusy(false);
+        setNativeLoadHistoryBusy(false);
       });
       setNativeExportBusy(true);
+      setNativeLoadHistoryBusy(true);
     }
     return exportPromise;
   }

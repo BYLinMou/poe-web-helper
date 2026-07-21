@@ -269,12 +269,21 @@
         assert([...marks].every((mark) => mark.dataset.poeNotesHighlight === 'blue'), 'color was not saved');
 
         const headerActions = document.querySelector('.ChatPageNavbar_rightNavItemWrapper__fixture');
+        const loadHistoryButton = headerActions.querySelector('[data-poe-notes-native-load-history]');
         const bookmarkButton = headerActions.querySelector('[data-poe-notes-native-bookmarks]');
         const exportButton = headerActions.querySelector('[data-poe-notes-native-export]');
+        assert(loadHistoryButton, 'load history button was not installed');
         assert(bookmarkButton, 'bookmark button was not installed');
         assert(exportButton, 'export button was not installed');
-        assert(headerActions.children[0] === bookmarkButton, 'bookmark button is not first');
-        assert(headerActions.children[1] === exportButton, 'bookmark button is not left of download');
+        assert(headerActions.children[0] === loadHistoryButton, 'load history button is not first');
+        assert(headerActions.children[1] === bookmarkButton, 'bookmark button is not left of download');
+        assert(headerActions.children[2] === exportButton, 'download button is not after bookmark');
+
+        loadHistoryButton.click();
+        assert(loadHistoryButton.getAttribute('aria-busy') === 'true', 'load history button did not enter busy state');
+        await wait(7400);
+        assert(!loadHistoryButton.hasAttribute('aria-busy'), 'load history button stayed busy after loading');
+        assert(document.querySelector('#message-491375933700'), 'load history did not load earlier messages');
 
         bookmarkButton.click();
         await wait(120);
